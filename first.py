@@ -1,3 +1,0 @@
-
-# first
-print('Hellow Git!')
