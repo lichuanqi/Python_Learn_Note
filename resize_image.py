@@ -1,5 +1,5 @@
 '''
-@Description: 
+@Description: 缩放图片
 @Autor: lichuan
 @Email: lc@dlc618.com
 @LastEditTime : 2019-12-31 23:50:07
@@ -11,26 +11,28 @@ import shutil
 import os
  
  
-infile = '/media/lc/Data/网站/草稿-2019/Ｄeepin系统/deepin.png'
-outfile = '/media/lc/Data/网站/草稿-2019/Ｄeepin系统/deepin_new.png'
+infile = '/media/lc/Data/modle_and_code/data/m2.png'
+image = cv2.imread(infile)
 
-def resize_by_width(infile,outfile,width_new):
+def resize_by_width(image,width_new):
     '''
-    @description: 按照宽度进行所需比例缩放
-    @param {infile}:输入图片路径和名称
-    @param {outfile}:图片路径和名称
-    @param {w_divide_h}:
-    @return: 
+    @description: 按照给定的宽度对图片进行所需比例的缩放操作
+    @param {image}:读取后的图片
+    @param {width_new}:想要得到的图片宽度
+    @return: 处理后的图片
     '''
-    im = cv2.imread(infile)
-    x, y, z= im.shape
-    print("读取到的图片尺寸为：%d %d %d"%(x, y, z))
+    x, y, z= image.shape
+    print("图片尺寸为为：高度%d 宽度%d 维度%d"%(x, y, z))
     
     rate = width_new / y
-    x_new, y_new = x*rate, width_new
-    im_new = np.zeros(x_new, y_new, z)  
+    # resize函数输入宽度在前，高度在后 
+    size = (int(y*rate), int(x*rate))
+    img_new = cv2.resize(image, size, interpolation=cv2.INTER_CUBIC)  
     
-    cv2.imwrite()
+    return img_new
 
 
-resize_by_width(infile,outfile,760)
+# cv2.imshow('before',image)
+cv2.imshow('after',resize_by_width(image,760))
+
+cv2.waitKey(0)
