@@ -2,14 +2,14 @@
 @Description: 
 @Autor: lichuan
 @Email: lc@dlc618.com
-@LastEditTime: 2020-02-24 14:37:01
+@LastEditTime: 2020-02-24 14:40:11
 '''
 import cv2
 import numpy as np
 
 
 img = cv2.imread('/media/lc/Data/model/data/450.jpg')
-x, y, n = img.shape
+# x, y, n = img.shape
 
 # 参数设置
 min_size = int(1)         # 滤波窗口的最小尺寸，一般为奇数

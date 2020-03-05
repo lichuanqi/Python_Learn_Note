@@ -1,10 +1,17 @@
-#
+'''
+@Description: 
+@Autor: lichuan
+@Email: lc@dlc618.com
+@LastEditTime: 2020-02-24 15:20:22
+'''
+
+
 import cv2
 import numpy as np
 
-# 第一步：读入图片
-mri_img = cv2.imread('/media/lc/8A986A3C986A26C3/model/data/m4.png')
 
+# 第一步：读入图片
+mri_img = cv2.imread('/media/lc/Data/modle_and_code/data/450.png')
 r, c, h = mri_img.shape
 
 for k in range(h):
