@@ -2,7 +2,7 @@
 @Description: 帧差法确定候选区
 @Autor: lichuan
 @Email: lc@dlc618.com
-@LastEditTime: 2020-03-05 10:56:43
+@LastEditTime: 2020-03-06 15:50:40
 '''
 
 import cv2
@@ -45,7 +45,7 @@ ret, img = cv2.threshold(img,1,255,cv2.THRESH_BINARY)
 img = cv2.dilate(img, kernel_1)  # 膨胀
 
 # 降噪
-img = cv2.medianBlur(img, 7)
+img = cv2.medianBlur(img, 9)
 
 # 连通域检测
 ret, contours, her= cv2.findContours(img, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_SIMPLE)
@@ -68,7 +68,7 @@ for contour in contours:
     rectangle_area = w * h
     fill_rate = area / rectangle_area
 
-    if fill_rate <= 0.5:
+    if fill_rate <= 0.55:
         # 更新最大候选坐标
         min_x = min(x, min_x)
         min_y = min(y, min_y)
@@ -83,8 +83,8 @@ for contour in contours:
         cv2.putText(img, text, (x+w+3, y+h+3), font, 0.4, (255, 255, 255), 1)
 
 # 最大候选区
-# cv2.rectangle(original, (min_x, min_y), (max_x,  max_y), (255, 0, 0),2)
-# cv2.rectangle(img, (min_x, min_y), (max_x,  max_y), (255, 0, 0),2)
+cv2.rectangle(original, (min_x, min_y), (max_x,  max_y), (255, 0, 0),2)
+cv2.rectangle(img, (min_x, min_y), (max_x,  max_y), (255, 0, 0),2)
 
 # 展示
 cv2.imshow('img',img)
