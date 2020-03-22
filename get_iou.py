@@ -4,7 +4,6 @@
 @lc@dlc618.com
 """
 
-
 def get_IoU(box1, box2):
     """
     @description：计算两个矩形框的交幷比
@@ -28,23 +27,6 @@ def get_IoU(box1, box2):
     IoU = area_intersect / (area_box1 + area_box2 - area_intersect)
 
     return IoU
-
-
-def solve_coincide(box1,box2):
-    x01, y01, x02, y02 = box1
-    x11, y11, x12, y12 = box2
-
-    col = min(x02,x12)-max(x01,x11)
-    row = min(y02,y12)-max(y01,y11)
-
-    intersection = col*row
-
-    area1=(x02-x01)*(y02-y01)
-    area2=(x12-x11)*(y12-y11)
-
-    coincide=intersection/(area1+area2-intersection)
-
-    return coincide
 
 
 if __name__ == '__main__':
