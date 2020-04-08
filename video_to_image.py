@@ -27,12 +27,12 @@ def resize_by_width(image,width_new):
 
 
 # 视频路径并读取
-path = '/media/lc/Data/modle_and_code/data/video/30s.mp4'
+path = '/media/lc/Data/modle_and_code/data/video_02/30s.mp4'
 cap = cv2.VideoCapture(path)
 
 # 输出保存相关数据
 # save_frame_no = []
-save_frame_no = [350,380,410,450]
+save_frame_no = [1,10]
 save_path = '/media/lc/Data/modle_and_code/data/'
 
 # 参数赋值
@@ -43,6 +43,11 @@ while cap.isOpened():
     # 逐帧读取图片
     ret, frame = cap.read()
 
+    # 图像金字塔
+    frame_first = frame
+    frame_second = cv2.pyrDown(frame)
+    frame_third = cv2.pyrDown(frame_second)
+
     # 判断视频是否结束
     if ret == False:
         time_used = time.time() - time_start
@@ -50,14 +55,10 @@ while cap.isOpened():
         break
     print('第 %d 张图片读取成功，正在处理中... ...'%i)
 
-    # 修改尺寸
-    
-    frame = resize_by_width(frame,1920)
-
     # 图像数据保存到本地
     if i in save_frame_no:
-        name_yuantu = save_path + str(i) + '.png'
-        cv2.imwrite(name_yuantu, frame)
+        name_yuantu = save_path + str(i) + '.jpg'
+        cv2.imwrite(name_yuantu, frame_second)
         print('----第 %d 帧图像保存到本地！'%i)
 
     i += 1
