@@ -27,13 +27,13 @@ def resize_by_width(image,width_new):
 
 
 # 视频路径并读取
-path = '/media/lc/Data/modle_and_code/data/video_02/30s.mp4'
+path = '/media/lc/Data/modle_and_code/data/video_02/small_30s.mp4'
 cap = cv2.VideoCapture(path)
 
 # 输出保存相关数据
 # save_frame_no = []
-save_frame_no = [1,10]
-save_path = '/media/lc/Data/modle_and_code/data/'
+save_frame_no = [200,300,400,500,600,700]
+save_path = '/media/lc/Data/modle_and_code/data/image/'
 
 # 参数赋值
 i = 1                            # 视频帧计数器
@@ -53,13 +53,15 @@ while cap.isOpened():
         time_used = time.time() - time_start
         print('视频结束，总处理时间为 %f !'%time_used)
         break
-    print('第 %d 张图片读取成功，正在处理中... ...'%i)
+    else:
 
-    # 图像数据保存到本地
-    if i in save_frame_no:
-        name_yuantu = save_path + str(i) + '.jpg'
-        cv2.imwrite(name_yuantu, frame_second)
-        print('----第 %d 帧图像保存到本地！'%i)
+        print('第 %d 张图片读取成功，正在处理中... ...'%i)
+
+        # 图像数据保存到本地
+        if i in save_frame_no:
+            name_yuantu = save_path + str(i) + '.jpg'
+            cv2.imwrite(name_yuantu, frame_first)
+            print('----第 %d 帧图像保存到本地！'%i)
 
     i += 1
 
