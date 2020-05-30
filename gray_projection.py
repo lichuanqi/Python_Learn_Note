@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 
 
 # 读取图片，装换为可运算的数组
-img=cv2.imread('bw2.png')  
+img=cv2.imread('/media/lc/Data/modle_and_code/data/paper2-1/499-3.jpg')  
 # 将BGR图转为灰度图
 GrayImage=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 # 二值化
