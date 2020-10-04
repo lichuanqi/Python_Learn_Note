@@ -21,5 +21,5 @@ plt.ylabel('Col',FontProperties=times)
 plt.xticks(FontProperties=times)
 plt.yticks(FontProperties=times)
 
-plt.savefig('/media/lcq/Data/modle_and_code/data/test.jpg',dpi=300)
+plt.savefig('/media/lcq/Data/modle_and_code/data/test.jpg',dpi=300, bbox_inches='tight')
 plt.show()
