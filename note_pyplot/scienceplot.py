@@ -8,7 +8,7 @@ import numpy as np
 
 x = np.linspace(0,100,100)
 y1 = np.random.randn()*x
-y2 = np.random.randn()*x**2
+y2 = np.random.randn()*x + 2
 
 with plt.style.context(['science', 'ieee','no-latex']):
     plt.figure()
