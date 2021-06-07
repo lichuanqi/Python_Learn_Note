@@ -27,12 +27,12 @@ def resize_by_width(image,width_new):
 
 
 # 视频路径并读取
-path = '/media/lc/Data/modle_and_code/data/video_02/small_30s.mp4'
+path = '/media/lcq/Data/modle_and_code/1_video/V50_ma_ren_65s.mp4'
 cap = cv2.VideoCapture(path)
 
 # 输出保存相关数据
 # save_frame_no = []
-save_frame_no = [200,300,400,500,600,700]
+# save_frame_no = [200,300,400,500,600,700]
 save_path = '/media/lc/Data/modle_and_code/data/image/'
 
 # 参数赋值
@@ -44,25 +44,33 @@ while cap.isOpened():
     ret, frame = cap.read()
 
     # 图像金字塔
-    frame_first = frame
-    frame_second = cv2.pyrDown(frame)
-    frame_third = cv2.pyrDown(frame_second)
+    frame1 = frame
+    frame2 = cv2.pyrDown(frame)
+    # frame_third = cv2.pyrDown(frame_second)
+
+    # 颜色转换
+    frame2_hsv = cv2.cvtColor(frame2,cv2.COLOR_BGR2HSV_FULL)
+    image_h, image_s, image_v = cv2.split(frame2_hsv)
 
     # 判断视频是否结束
     if ret == False:
         time_used = time.time() - time_start
         print('视频结束，总处理时间为 %f !'%time_used)
         break
-    else:
 
-        print('第 %d 张图片读取成功，正在处理中... ...'%i)
+    print('第 %d 张图片读取成功，正在处理中... ...'%i)
 
-        # 图像数据保存到本地
-        if i in save_frame_no:
-            name_yuantu = save_path + str(i) + '.jpg'
-            cv2.imwrite(name_yuantu, frame_first)
-            print('----第 %d 帧图像保存到本地！'%i)
+    # 图像的展示
+    cv2.imshow('image_h',image_v)
+
+    # 图像数据保存到本地
+    # if i in save_frame_no:
+    #     name_yuantu = save_path + str(i) + '.jpg'
+    #     cv2.imwrite(name_yuantu, frame_first)
+    #     print('----第 %d 帧图像保存到本地！'%i)
 
     i += 1
+
+    cv2.waitKey(1)
 
 
