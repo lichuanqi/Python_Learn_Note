@@ -7,6 +7,36 @@
 
 import numpy as np
 from math import radians, cos, sin, atan2, sqrt
+from matplotlib import pyplot as plt
+
+
+def plotxy(x,y):
+
+    plt.plot(x,color='b',label='X',linestyle='-',alpha=0.7)
+    plt.plot(y,color='r',label='Y',linestyle='-',alpha=0.9)
+
+    plt.show()
+
+
+
+def cos_sim(vector_a, vector_b):
+    """
+    计算两个向量之间的余弦相似度
+    :param vector_a: 向量 a 
+    :param vector_b: 向量 b
+    :return: sim
+    """
+    vector_a = np.mat(vector_a)
+    vector_b = np.mat(vector_b)
+    num = float(vector_a * vector_b.T)
+    denom = np.linalg.norm(vector_a) * np.linalg.norm(vector_b)
+    cos = num / denom
+    sim = 0.5 + 0.5 * cos
+
+    print('两个向量之间的余弦相似度:%.3f'%sim)
+
+    return sim
+
 
 
 def lcss(s, t):
@@ -38,6 +68,14 @@ def lcss(s, t):
 
 
 def lcs(a, b):
+    '''
+    Description:
+        计算两个轨迹之间的最长相同子序列LCSS
+    Input：
+        a，b：两个轨迹
+    Output：
+        li：最长相同子序列LCSS
+    '''
     lena = len(a)
     lenb = len(b)
     c = [[0 for i in range(lenb + 1)] for j in range(lena + 1)]
@@ -72,43 +110,51 @@ def printLcs(flag, a, i, j):
     return li
 
 
-# 给定两个轨迹
-a = np.array([180, 180, 141, 146, 141, 200, 235, 235, 173, 141, 141, 172, 180])
-b = np.array([165, 235, 180, 141, 240, 171, 173, 172])
+def testttt():
 
-# 给定两个轨迹 - 1-D的距离
-a2 = np.array([4,5,4,5,6,4,5])
-b2 = np.array([1,3,2,3,2,4,2])
+    # CDP
+    # 即找出两条轨迹之间两点距离最近的两个点，以该点对的距离作为轨迹距离。
+    # 定义简单，但是容易受到局部极端情况的影响，考虑两条轨迹在某点相交，
+    # 然而整体情况差异很大，这种情况用CPD距离显然不合适。总体来说，这种方法不是很好。
+    CDPab = np.min(np.abs(a2-b2))
+    print('SDP 距离：%s' % (CDPab))
 
-# CDP
-# 即找出两条轨迹之间两点距离最近的两个点，以该点对的距离作为轨迹距离。
-# 定义简单，但是容易受到局部极端情况的影响，考虑两条轨迹在某点相交，
-# 然而整体情况差异很大，这种情况用CPD距离显然不合适。总体来说，这种方法不是很好。
-CDPab = np.min(np.abs(a2-b2))
-print('SDP 距离：%s' % (CDPab))
-
-# SDP
-# 对两条轨迹对应序号的点对计算距离并求和，以该求和距离作为轨迹相似性分数。
-# 要求轨迹A和轨迹B具有相同的轨迹点个数
+    # SDP
+    # 对两条轨迹对应序号的点对计算距离并求和，以该求和距离作为轨迹相似性分数。
+    # 要求轨迹A和轨迹B具有相同的轨迹点个数
 
 
-# LCSS
-# a、b表示两个mac在某段时间内的轨迹id序列
-li =[]
-c, flag = lcs(a, b)
-li = printLcs(flag, a, len(a), len(b))
-print ('LCSS 最长子系列：%s'%li)
-print ('LCSS 最长子系列长度：%s'%len(li))
-LCSSab = len(li)/min(len(a),len(b))
-print('LCSS 相似度归一化结果：%s' % (LCSSab))
+    # LCSS
+    # a、b表示两个mac在某段时间内的轨迹id序列
+    li =[]
+    c, flag = lcs(a, b)
+    li = printLcs(flag, a, len(a), len(b))
+    print ('LCSS 最长子系列：%s'%li)
+    print ('LCSS 最长子系列长度：%s'%len(li))
+    LCSSab = len(li)/min(len(a),len(b))
+    print('LCSS 相似度归一化结果：%s' % (LCSSab))
 
-# DTW
-
-
-# EDR
+    # DTW
 
 
-# H
+    # EDR
 
 
-# O
+    # H
+
+
+    # O
+
+
+if __name__ == "__main__":
+
+    # 给定两个轨迹
+    a = np.array([180, 180, 141, 146, 141, 200, 235, 235, 173, 141, 141, 172, 180])
+    b = np.array([165, 235, 180, 141, 240, 171, 173, 172])
+
+    # 给定两个轨迹 - 1-D的距离
+    a2 = np.array([4,5,4,5,6,4,5])
+    b2 = np.array([1,3,2,3,2,4,5])
+
+    plotxy(a2,b2)
+    cos_sim(a2,b2)
