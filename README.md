@@ -58,3 +58,11 @@ Python学习笔记
     ├── create_gif.py         # 图片转动图
     └── video_to_image.py     # 视频转图片
 ```
+
+# Requirments
+
+```
+opencv-python
+numpy
+...
+```
