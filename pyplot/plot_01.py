@@ -39,7 +39,28 @@ def plot_area(x, y):
     plt.ylabel('Object Number')
     plt.show()
 
+def plot_rectangle():
+    """
+    矩形框
+    输入：xy, width, height, angle=0.0， fill, linewidth=3, edgecolor="r"
+        xy: 2元组 矩形左下角xy坐标
+        width:矩形的宽度
+        height:矩形的高度
+        angle: float, 可选，矩形相对于x轴逆时针旋转角度，默认0
+        fill: bool, 可选，是否填充矩形
+    """
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.axis([-10,10, -10,10])
+    rect = plt.Rectangle((0,0),4,8,fill=False,edgecolor="r")
+    ax.add_patch(rect)
+
+    plt.show()
+
+
 if __name__ == "__main__":
+
     # xValue = list(range(0, 101))
     # yValue = [x * np.random.rand() for x in xValue]
     d = 0.4
@@ -51,10 +72,4 @@ if __name__ == "__main__":
     sc = (t*(a-c)**2) / (2*(2*t-r**2))
     sc2 = t*(6*t*(1-d)**2-r**2)*(a-c)**2/2*(4*t*(1-d)-r**2)**2
 
-    plt.title('Plot')
-    # plt.plot(t, sc, label='sc')
-    plt.plot(t, sc2, label='sc2')
-    plt.xlabel('t', fontsize=16)
-    plt.ylabel('sc', fontsize=16)
-    plt.legend()
-    plt.show()
+    plot_rectangle()

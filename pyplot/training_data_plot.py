@@ -6,6 +6,9 @@ Note: 根据训练数据绘制折线图
 
 """
 
+import re
+from trace import Trace
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.font_manager import FontProperties
 import csv
@@ -45,19 +48,23 @@ def smooth_data(data, weight=0.1):
 	return smoothed
 
 
-if __name__ == "__main__":
-
-	# 读取字体
-	times = FontProperties(fname='C:/Windows/Fonts/Times New Roman/times.ttf', size=18)
+def plot_keras_data():
 
 	# Unet
-	csv_path = "D:/Code/Keras-Semantic-Segmentation/expdata/0721_R660_unet/0721_R660_unetlog.csv"
+	# csv_path = "D:/Code/Keras-Semantic-Segmentation/expdata/0721_R660_unet/0721_R660_unetlog.csv"
 	# Unet-1
 	# csv_path = "D:/Code/Keras-Semantic-Segmentation/expdata/0721_R660_unet_1/0721_R660_1__nunetlog.csv"
 	# Unet-2
 	# csv_path = "D:/Code/Keras-Semantic-Segmentation/expdata/0721_R660_unet_2/0721_R660_2_nunetlog.csv"
 	# Unet-3
 	# csv_path = 'D:/Code/Keras-Semantic-Segmentation/expdata/0721_R660_unet_3/0721_R660_3_unetlog.csv'
+	
+	
+	# 0328版 - unet
+	# csv_path = "D:/Code/Keras-Semantic-Segmentation/expdata/20220328_R660_unet/log.csv"
+	# 0328版 - nunet
+	csv_path = "D:/Code/Keras-Semantic-Segmentation/expdata/20220328-R660x9_nunet/log.csv"
+
 	list_data = read_csv(csv_path)
 
 	epoch = []
@@ -97,7 +104,7 @@ if __name__ == "__main__":
 	# 坐标轴刻度字体
 	plt.minorticks_on()
 	plt.legend()
-	plt.savefig('D:/论文/论文3-毕业论文/图片/图 22-Unet-1-准确率',dpi=300, bbox_inches='tight')
+	# plt.savefig('D:/论文/论文3-毕业论文/图片/图 22-Unet-1-准确率',dpi=300, bbox_inches='tight')
 
 	# 损失函数 Loss
 	plt.figure()
@@ -109,6 +116,117 @@ if __name__ == "__main__":
 	# 坐标轴刻度字体
 	plt.minorticks_on()
 	plt.legend()
-	plt.savefig('D:/论文/论文3-毕业论文/图片/图 22-Unet-2-损失函数',dpi=300, bbox_inches='tight')
+	# plt.savefig('D:/论文/论文3-毕业论文/图片/图 22-Unet-2-损失函数',dpi=300, bbox_inches='tight')
 
 	plt.show()
+
+	return True
+
+
+def plot_yolov5_data(is_save=False):
+
+	csv_path = "D:/Code/Pytorch-YOLOV5/runs/train-20220330-yolov5-Rail14/log.csv"
+
+	list_data = read_csv(csv_path)
+
+	epoch = []
+	train_prcision = []
+	train_recall = []
+	train_loss_total = []
+	val_loss_total = []
+	map05 = []
+	map0595 = [] 
+
+	for i in range(0,len(list_data)):
+
+		epoch.append(int(list_data[i][0]))
+		train_prcision.append(float(list_data[i][8]))
+		train_recall.append(float(list_data[i][9]))
+		train_loss_total.append(float(list_data[i][5]))
+		val_loss_total.append(float(list_data[i][15]))
+		map05.append(float(list_data[i][10]))
+		map0595.append(float(list_data[i][11]))
+		
+	# smooth
+	train_prcision = smooth_data(train_prcision,weight=0.7)
+	train_recall = smooth_data(train_recall,weight=0.5)
+	# train_loss_total = smooth_data(train_loss_total,weight=0.5)
+	# val_loss_total = smooth_data(val_loss_total,weight=0.5)
+	map05 = smooth_data(map05,weight=0.5)
+	map0595 = smooth_data(map0595,weight=0.5)
+
+	# train_prcision
+	plt.figure()
+	plt.plot(epoch,train_prcision,label='prcision')
+	# plt.ylim(0.88,1)
+	# 坐标轴
+	plt.xlabel('Epoch')
+	plt.ylabel('Prcision')
+	# 坐标轴刻度字体
+	plt.minorticks_on()
+	plt.legend()
+	if is_save:
+		plt.savefig('D:/论文/论文3-毕业论文/图片/图 43-1-precison.jpg',dpi=300, bbox_inches='tight')
+	
+	# racall
+	plt.figure()
+	plt.plot(epoch,train_recall,label='recall')
+	# plt.ylim(0.88,1)
+	# 坐标轴
+	plt.xlabel('Epoch')
+	plt.ylabel('Recall')
+	# 坐标轴刻度字体
+	plt.minorticks_on()
+	plt.legend()
+	if is_save:
+		plt.savefig('D:/论文/论文3-毕业论文/图片/图 43-2-recall.jpg',dpi=300, bbox_inches='tight')
+	
+	# loss
+	fig2 = plt.figure()
+	plt.plot(epoch,train_loss_total,label='train_loss')
+	plt.plot(epoch,val_loss_total,label='val_loss')
+	# plt.ylim(0.88,1)
+	# 坐标轴
+	plt.xlabel('Epoch')
+	plt.ylabel('Loss')
+	# 坐标轴刻度字体
+	plt.minorticks_on()
+	plt.legend()
+	if is_save:
+		plt.savefig('D:/论文/论文3-毕业论文/图片/图 43-3-loss.jpg',dpi=300, bbox_inches='tight')
+
+	# map
+	plt.figure()
+	plt.plot(epoch,map05,label='map05')
+	# plt.ylim(0.88,1)
+	# 坐标轴
+	plt.xlabel('Epoch')
+	plt.ylabel('mAP')
+	# 坐标轴刻度字体
+	plt.minorticks_on()
+	plt.legend()
+	if is_save:
+		plt.savefig('D:/论文/论文3-毕业论文/图片/图 43-4-map05.jpg',dpi=300, bbox_inches='tight')
+	
+	# map 0595	 
+	plt.figure()
+	plt.plot(epoch,map0595,label='map0595')
+	# plt.ylim(0.88,1)
+	# 坐标轴
+	plt.xlabel('Epoch')
+	plt.ylabel('mAP')
+	# 坐标轴刻度字体
+	plt.minorticks_on()
+	plt.legend()
+	if is_save:
+		plt.savefig('D:/论文/论文3-毕业论文/图片/图 43-5-map0595.jpg',dpi=300, bbox_inches='tight')
+
+	plt.show()
+
+	return True
+
+
+if __name__ == "__main__":
+
+	# plot_keras_data()
+	plot_yolov5_data(is_save=True)
