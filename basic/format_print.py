@@ -64,5 +64,11 @@ time_now = time.time()
 print('时间戳: {}'.format(time_now))
 time_local = time.localtime(time_now)
 print('时间元组: {}'.format(time_local))
-time_str = time.strftime('%Y-%m-%d %H:%M:%S',time_local))
-print('时间字符串: {}'.format(time_str)
+time_str = time.strftime('%Y-%m-%d %H:%M:%S',time_local)
+print('时间字符串: {}'.format(time_str))
+
+
+file = 'D://Code/image_list.txt'
+dir = 'D://Code/images'
+is_txt = file.endswith('.txt')
+print('{} 是否是文本文件: {}'.format(file, is_txt))

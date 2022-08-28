@@ -1,0 +1,29 @@
+
+# path
+/data/
+/expdata/
+/runs/
+/weights/
+/__pycache__/
+__pycache__/
+
+# file
+*.csv
+*.onnx
+*.pb
+*.json
+*.jpg
+*.png
+*.hdf5
+*.csv
+*.pyc
+*.xml
+*.zip
+*.vscode
+*.yaml
+
+# other
+sync.sh
+syncignore.txt
+*.pc
+idea
