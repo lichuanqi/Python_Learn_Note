@@ -7,6 +7,8 @@
 /__pycache__/
 __pycache__/
 
+/.vscode/
+
 # file
 *.csv
 *.onnx
@@ -21,6 +23,7 @@ __pycache__/
 *.zip
 *.vscode
 *.yaml
+*.html
 
 # other
 sync.sh
