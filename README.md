@@ -16,7 +16,7 @@ Python学习笔记
 │   ├── test_sympy.py
 │   ├── txt_read.py            
 │   └── txt_write.py
-├── cv2                       # opencv-python
+├── vision                    # 图像处理相关，主要使用opencv-python
 │   ├── read_and_show.py      # 图像的读写和展示
 │   ├── huidu.py
 │   ├── erzhihua.py
@@ -33,6 +33,8 @@ Python学习笔记
 │   ├── img_labled.py         # 图像添加矩形框
 │   ├── logic_operation.py    # 逻辑运算
 │   └── resize_image.py       # 尺寸修改
+├── audio                     # 音频处理相关
+│   ├── format_convert.py     # *.m4a -> *.wav
 ├── numpy
 │   ├── basic.py
 │   ├── distance_point.py
@@ -56,6 +58,7 @@ Python学习笔记
 │   └── vpi.py
 └── tools                     # 小工具
     ├── create_gif.py         # 图片转动图
+    ├── fill_disk.py          # 随机生成内容填充磁盘
     └── video_to_image.py     # 视频转图片
 ```
 
