@@ -11,7 +11,7 @@ def m4a2wav(input, output):
     subprocess.Popen(cmd, shell=True, stdout=None, stderr=None).wait()
 
 
-path = 'D:/Data/Jiyao_address/002/'
+path = 'D:/Data/Speech/long/'
 # path = "D:/Code/ASRT_SpeechRecognition_V1.3.0/data/20220829_091159.m4a"
 
 save_path = ''
