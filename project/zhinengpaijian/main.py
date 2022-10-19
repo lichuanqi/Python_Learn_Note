@@ -1,8 +1,9 @@
+import re
 import sys
 import time
-import pandas as pd
+from matplotlib.pyplot import get
 
-import re
+import pandas as pd
 
 
 def get_keyword(gjz_path) -> dict:
@@ -13,7 +14,7 @@ def get_keyword(gjz_path) -> dict:
     Return:
         gjz: 
     """
-    gjz_path = 'D:\CPRI\项目6-智能派件\育新关键字表.xls'
+    gjz_path = 'D:\CPRI\项目6-智能派件\data_gjz.xls'
     gjz = pd.read_excel(gjz_path)
     print('读取关键字列表到 gjz')
     # print(gjz)
@@ -37,6 +38,28 @@ def get_keyword(gjz_path) -> dict:
     # de_id_set = set(df['address'].values)
 
     return gjz_dict_key
+
+
+def get_shixian() -> dict:
+    """
+    读取时限数据表
+    Args:
+        shixian:
+    Return:
+        dict
+    """
+    shixian_dict = {}
+    shixian_path = 'D:\CPRI\项目6-智能派件\data_shixian.xlsx'
+    shixian = pd.read_excel(shixian_path)
+    # print(shixian)
+
+    for index,row in shixian.iterrows():
+        k = row[0] + '_' + row[1]
+        v = row[2]
+
+        shixian_dict[k] = v
+
+    return shixian_dict
 
 
 def get_word_list(s1):
@@ -122,28 +145,24 @@ def qiongju(add_char:list, ns:int, nn:int) -> list:
     return results
 
 
-def fun_test():
-    
-    # 将字符串切分开
-    strs = '回龙观街道东村家园甲10号楼7单元'
-    word_list = get_word_list(strs)
-    print('输入: {}'.format(strs))
-    print('输出: {}'.format(word_list))
-
-
-if __name__=='__main__':
-
-    # 投递数据
-    yuxin_path = 'D:\CPRI\项目6-智能派件\育新投递.csv'
-    yuxin = pd.read_csv(yuxin_path)
+def add_juhedian(toudi_path, savepath):
+    '''
+    根据投递表的地址信息计算聚合点,并增加到表中
+    Args
+        toudi_path: 投递表路径
+        savepath: 新的投递表保存路径
+    Return
+        True
+    '''
+    # 读取投递数据
+    toudi = pd.read_csv(toudi_path, sep='\t')
+    print(toudi)
 
     # 获取关键词保存到字典的keys中
     gjz = get_keyword(gjz_path=None)
-    # print('gjz:{}'.format(gjz))
 
-    results = []
-
-    for index, row in yuxin.iterrows():
+    juhedian = []
+    for index, row in toudi.iterrows():
         addr = str(row['receiver_addr'])
         print('地址: {}'.format(addr))
 
@@ -170,10 +189,92 @@ if __name__=='__main__':
             r = 'pass'
             print(r)
 
-        result = [addr,r]
-        results.append(result)
-            
-    result_df = pd.DataFrame(data=results, columns=['add', 'res'])
-    savepath = 'project/zhinengpaijian/results.txt'
-    result_df.to_csv(savepath, sep='\t',index=True, header = True)
-    print(result_df)
+        juhedian.append(r)
+
+    # 将聚合点数据单独保存为文件
+    # result_df = pd.DataFrame(data=results, columns=['add', 'res'])
+    # savepath = 'project/zhinengpaijian/results.txt'
+    # result_df.to_csv(savepath, sep='\t',index=True, header = True)
+    # print(result_df)
+
+    # 将聚合点数据增加一列到投递表
+    toudi.insert(14,column='juhedian', value=juhedian)
+    toudi.to_csv(savepath, sep='\t',index=True, header = True)
+
+    return True
+
+
+def add_pinci(toudi_path, savepath):
+    """
+    根据投递表的地址信息计算投递频次,并增加到表中
+        下段时间12:00前,时限要求当日,可1频、2频投
+        下段时间12:00前,时限要求当频,1频投
+        下段时间12:00后,2频投
+    Args
+        toudi_path: 投递表路径
+        savepath: 新的投递表保存路径
+    Return
+        True
+    """
+    # 读取投递数据
+    toudi = pd.read_csv(toudi_path)
+    # print(toudi)
+
+    # 读取时限数据表到字典
+    # 时限要求有两种：当日、当频
+    shixian_dict = get_shixian()
+    # print(shixian_dict)
+
+    # 读取下段时间、邮件类型、时限要求
+    pincis = []
+    for index, row in toudi.iterrows():
+
+        leixing1 = '速递'
+        leixing2 = str(row['business_prodduct_name'])
+
+        leixing = leixing1 + '_' + leixing2
+        shixian = shixian_dict[leixing]
+
+        time_xiaduan = str(row['first_xiaduan'])
+        if '/' in time_xiaduan:
+            time_xiaduan_h = int(time_xiaduan.split(' ')[1].split(':')[0])
+        else:
+            time_xiaduan_h = 25
+        # print('下段时间: {},邮件类型: {},时限要求: {}'.format(time_xiaduan_h,leixing,shixian))
+
+        # 根据以上三个信息计算投递频次
+        if time_xiaduan_h < 12:
+            if shixian == '当频':
+                pinci = 1
+            else:
+                pinci = 3
+        elif time_xiaduan_h <= 24:
+            pinci = 2
+        else:
+            pinci = 4
+        pincis.append(pinci)
+
+        print('下段时间: {},邮件类型: {},时限要求: {},频次: {}'. \
+                format(time_xiaduan_h,leixing,shixian, pinci))
+    
+    # 数据增加一列到投递表
+    toudi.insert(14,column='pinci', value=pincis)
+    toudi.to_csv(savepath, index=True, header = True)
+
+
+def fun_test():
+    # 将字符串切分开
+    strs = '回龙观街道东村家园甲10号楼7单元'
+    word_list = get_word_list(strs)
+    print('输入: {}'.format(strs))
+    print('输出: {}'.format(word_list))
+
+
+if __name__=='__main__':
+    # toudi_path = 'D:\CPRI\项目6-智能派件\data_toudi_utf-8.txt'
+    # savepath = 'project/zhinengpaijian/youdi_juhedian.txt'
+    # add_juhedian(toudi_path, savepath)
+
+    toudi_path = 'D:\CPRI\项目6-智能派件\育新投递.csv'
+    savepath = 'project/zhinengpaijian/toudi_pinci.csv'
+    add_pinci(toudi_path, savepath)
