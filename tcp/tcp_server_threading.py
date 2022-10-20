@@ -29,7 +29,7 @@ if __name__ == '__main__':
     tcp_server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,True)
   
     # 2 绑定端口
-    tcp_server.bind(("",61234))
+    tcp_server.bind(("",5000))
   
     # 3 设置监听
     tcp_server.listen(128)
