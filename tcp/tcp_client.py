@@ -19,7 +19,7 @@ if __name__ == '__main__':
     # server_port = 61234
     # Deepin
     server_ip = '617y264d81.goho.co'
-    server_port = 40966
+    server_port = 16498
     tcp_client_1.connect((server_ip, server_port))
 
     while True:
