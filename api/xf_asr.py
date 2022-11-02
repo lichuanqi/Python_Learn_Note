@@ -91,8 +91,10 @@ class RequestApi(object):
 
 # 输入讯飞开放平台的appid，secret_key和待转写的文件路径
 if __name__ == '__main__':
+    time_start = time.time()
     api = RequestApi(appid="38e04c7e",
                      secret_key="6328f97f410f9253a487d9e0d9b7c568",
                      upload_file_path="D:/Data/Jiyao_address/003/tts_0_0.wav")
 
     api.get_result()
+    print(time.time() - time_start)
