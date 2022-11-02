@@ -18,25 +18,33 @@ if __name__ == '__main__':
     # server_ip = '127.0.0.1'
     # server_port = 61234
     # Deepin
-    server_ip = '617y264d81.goho.co'
-    server_port = 16498
-    tcp_client_1.connect((server_ip, server_port))
+    server_ip = '223.71.26.236'
+    server_port = 9000
 
-    while True:
+    try:
+        tcp_client_1.connect((server_ip, server_port))
+        print(f'连接成功: {tcp_client_1}')
 
-        # 将编号好的数据存到变量send_data中，注：encode(encoding='utf-8)是将数据转换成utf-8的格式发送给服务器
-        send_data = "你好，服务器，我是客户端1号".encode(encoding='utf-8')
-        
-        # 3 通过客户端套接字的send方法将数据发送给服务器
-        tcp_client_1.send(send_data)
+        while True:
 
-        # 4 通过客户端套接字的recv方法来接受服务器返回的数据存到变量recv_data中，1024是可接收的最大字节数。
-        recv_data = tcp_client_1.recv(1024)
-        
-        # 将接收到的服务器数据recv_data通过decode方法解码为utf-8
-        print(recv_data.decode(encoding = 'utf-8'))
+            # 将编号好的数据存到变量send_data中，注：encode(encoding='utf-8)是将数据转换成utf-8的格式发送给服务器
+            send_data = "你好，服务器，我是客户端1号".encode(encoding='utf-8')
+            
+            # 3 通过客户端套接字的send方法将数据发送给服务器
+            tcp_client_1.send(send_data)
 
-        time.sleep(5)
+            # 4 通过客户端套接字的recv方法来接受服务器返回的数据存到变量recv_data中，1024是可接收的最大字节数。
+            recv_data = tcp_client_1.recv(1024)
+            
+            # 将接收到的服务器数据recv_data通过decode方法解码为utf-8
+            print(recv_data)
+
+            time.sleep(5)
+
+    except TimeoutError as er:
+        print(er)
+    except ConnectionError as er:
+        print(er)
 
     # 5 最后关闭客户端套接字连接
     tcp_client_1.close()
