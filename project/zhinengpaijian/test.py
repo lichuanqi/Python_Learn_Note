@@ -1,6 +1,11 @@
 from re import S
 import pandas as pd
 
+class Vividict(dict):
+    def __missing__(self, key):
+        value = self[key] = type(self)()
+        return value
+
 def time_test():
     pdt = pd.to_datetime('20220601 00:01', format=r'%Y%m%d %H:%M')
     print(f'pdt: {pdt}')
@@ -32,6 +37,14 @@ def dict_test():
     datas['点1'] = data1
 
     print(datas)
+
+
+def dict_muilt():
+    dd = Vividict()
+    
+    dd['name']['a'] = 1
+
+    print(dd)
 
     
 def count_leixing():
@@ -68,5 +81,4 @@ def merge_list():
     print(d)
 
 if __name__ == '__main__':
-    
-    merge_list()
+    dict_muilt()

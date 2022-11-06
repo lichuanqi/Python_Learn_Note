@@ -1,3 +1,4 @@
+import json
 import time
 import requests
 
@@ -9,41 +10,129 @@ from pyecharts.globals import GeoType
 # from pyecharts.globals import CurrentConfig
 # CurrentConfig.ONLINE_HOST = "https://cdn.jsdelivr.net/npm/echarts@latest/dist/"
 
-from main import save_dict2json
-from tomllib import TOMLDecodeError
+from main import save_dict2json, json2dict
+from isPointinArea import isin_multipolygon
 
 
-def draw_orders(orders, start_point):
+def read_fence():
+    """
+    生成揽投部基础信息json文件
+    """
+    path = "D:\CPRI\项目6-智能派件\data_dzwl_yx.txt"
+
+    with open(path, 'r') as f:
+        lines = f.readlines()
+
+    lantoubu = {'name': '育新揽投部',
+                'loc': [116.351822, 40.062749],
+                'fence': []}
+
+    for line in lines:
+        ll = line.strip().split(',')
+        lng, lat = float(ll[0]), float(ll[1])
+
+        lng_new, lat_new = '%.6f'%lng, '%.6f'%lat
+
+        lantoubu['fence'].append([lng_new, lat_new])
+
+    savename = 'D:\CPRI\项目6-智能派件\data_lantoubu.json'
+    save_dict2json(lantoubu, savename)
+    print(f'揽投部基础信息保存至: {savename}')
+
+
+def selecte_orders(orders):
+    """
+    派件点坐标筛选和去重
+    Args
+        orders [dict,dict]:
+    Return
+        orders_new [dict,dict]:
+    """
+    orders_new = []
+    points = []
+    area = []
+    for i in range(len(lantoubu['fence'])):
+        area.append([float(lantoubu['fence'][i][0]), float(lantoubu['fence'][i][1])])
+
+    for order in orders:
+        lng, lat = float(order['longitude']), float(order['latitude'])
+
+        point = [float('%.4f'%lng), float('%.4f'%lat)]
+
+        # 去除重复GPS点
+        if point not in points:
+            points.append(point)
+
+            # 去除电子围栏外的点
+            if isin_multipolygon(point, area, contain_boundary=True):
+                orders_new.append(order)
+
+    print(f'共 {len(points)}/{len(orders)} 点不重复')
+    print(f'共 {len(orders_new)}/{len(orders)} 点在电子围栏中')
+
+    return orders_new
+
+
+def draw_orders(orders, lantoubu):
     """
     根据orders的经纬度信息把派件点绘制在地图上
-
     Args
         orders [dict]: 订单经纬度数据
-        start_point []: 起始点名称及经纬度数据
+        lantoubu [dict]: 揽投部信息，起始点名称、经纬度数据、电子围栏
+                        {
+                            "name":"育新揽投部",
+                            "loc":[
+                                116.351822,
+                                40.062749
+                            ],
+                            "fence":[
+                                [
+                                    116.416219,
+                                    40.059834
+                                ],
+                                [
+                                    116.41532,
+                                    40.059226
+                                ]
+                        }
     """
-
-    # 绘制地图
+    # 绘制底图
     geo=Geo(init_opts=opts.InitOpts(width="1200px",height='600px'))
     geo.set_global_opts(title_opts=opts.TitleOpts(title='育新投递部6.1邮件收件地址分布情况',
                                                 subtitle='数据来源：育新投递明细表'))
     geo.add_schema(maptype='北京')
+
+    # 绘制揽投部位置
+    start_point = [lantoubu['name'], lantoubu['loc'][0], lantoubu['loc'][1]]
+    # 新增坐标点
+    geo.add_coordinate(start_point[0], start_point[1], start_point[2])
+    # 展示坐标点
+    geo.add('起始点', [(start_point[0], 5)], type_=GeoType.SCATTER, symbol_size=8)
+
+    # 绘制电子围栏点
+    fences = lantoubu['fence']
+    for i in range(len(fences)):
+        geo.add_coordinate('fence_'+ str(i), fences[i][0], fences[i][1])
+    for i in range(len(fences)):
+        geo.add('电子围栏', [('fence_'+ str(i), i)], type_=GeoType.SCATTER, symbol_size=8, symbol='triangle')
     
+    # 绘制电子围栏点之间的连线
+    # for i in range(len(fences)-1):
+    #     geo.add('电子围栏', [('fence_'+ str(i), 'fence_'+ str(i+1))], type_=GeoType.LINES)
+
+    # 绘制派件点
     gps = []
     for i in range(len(orders)):
         id = orders[i]['order_id']
         lng = orders[i]['longitude']
         lat = orders[i]['latitude']
         leixing = '速递'
-        
-        gps.append([id, float(lng), float(lat), leixing])
 
-    # 新增坐标点
-    geo.add_coordinate(start_point[0], start_point[1], start_point[2])
+        gps.append([id, lng, lat, leixing])
+
     for g in gps:
         geo.add_coordinate(g[0], g[1], g[2])
 
-    # 展示坐标点
-    geo.add('起始点', [(start_point[0], 5)], type_=GeoType.SCATTER, symbol_size=10)
     for g in gps:
         geo.add(g[3], [(g[0], 10)], type_=GeoType.SCATTER, symbol_size=10)
 
@@ -51,19 +140,40 @@ def draw_orders(orders, start_point):
     geo.set_series_opts(label_opts=opts.LabelOpts(is_show=False))
 
     # 输出为html文件
-    savename = 'project/zhinengpaijian/request.html'
+    savename = 'D:/CPRI/项目6-智能派件/output-1102/order_requests.html'
     geo.render(path=savename)
     print(f'派件点经纬度可视化结果保存至: {savename}')
 
 
-def request_api(url,data_post):
+def request_api(url, orders, start_point):
     """
     请求接口数据
 
     Args
         url:
-        data:
+        orders:
+        start_point: 
+
+    Return
+
     """
+
+    data_post = {"calc_guid": "112",
+        "dept_code": "10009612",
+        "route_id": 3,
+        "node_name": "育新投递部",
+        "one_mail_delivery_duration": 120,
+        "work_duration": 240,
+        "begin_delivery_time_window": "12:00",
+        "end_delivery_time_window": "16:00",
+        "vehicle_capacity": 60,
+        "max_vehicle_count": 20,
+        "nspeed": 20,
+        "spent_limit": 1,
+        'unimproved_spent_limit': 3600,
+        'start_point_lng': start_point[1],
+        'start_point_lat': start_point[2],
+        "orders": orders}
 
     start_time = time.time()
     print(f'开始请求接口: {url}')
@@ -80,178 +190,46 @@ def request_api(url,data_post):
         save_dict2json(response_json, savename)
         print(f'接口返回值已保存至: {savename}')
 
+        return response_json
+
     except ConnectionError as f:
         print(f'连接错误: {f}')
 
+
+def chuli_respone_json():
+    """
+    根据接口返回值提取时间和距离
+    """
+    respone = {'status': 0, 'message': '成功', 'result': [{'vehicleId': 3, 'dotId': 0, 'arrivetime': 52467, 'departtime': 43200, 'itemnum': 0, 'dealtime': 0, 'dotxlh': 0, 'longitude': 116.351822, 'latitude': 40.062749, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 43232, 'departtime': 43352, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 1, 'longitude': 116.352008, 'latitude': 40.062217, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 43632, 'departtime': 43752, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 2, 'longitude': 116.356809, 'latitude': 40.059056, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 44493, 'departtime': 44613, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 3, 'longitude': 116.342016, 'latitude': 40.065049, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 44776, 'departtime': 44896, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 4, 'rrivetime': 48509, 'departtime': 48629, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 10, 'longitude': 116.370406, 'latitude': 40.06081, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 48979, 'departtime': 49099, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 11, 'longitude': 116.376398, 'latitude': 40.064756, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 49320, 'departtime': 49440, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 12, 'longitude': 116.380348, 'latitude': 40.067101, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 50113, 'departtime': 50233, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 13, 'longitude': 116.39271, 'latitude': 40.060331, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 50403, 'departtime': 50523, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 14, 'longitude': 116.395697, 'latitude': 40.062167, 'twindow1': 43200, 'twindow2': 57600 }]}
+
+    results = respone.json()['result'][0]
+
+    arrivetime = results['arrivetime']
+    departtime = results['departtime']
+
+
+
+
+
 if __name__=='__main__':
 
-    url = 'http://132.10.10.41:8001/api/v1/planroutes_one'
+    # TODO: √ 真实数据的经纬度腾讯转百度
+    #       √ 根据电子围栏删除异常点
+    #       √ 点归集
 
-    data_post = {"calc_guid": "112",
-        "dept_code": "10009612",
-        "route_id": 3,
-        "node_name": "育新投递部",
-        "one_mail_delivery_duration": 120,
-        "work_duration": 240,
-        "begin_delivery_time_window": "12:00",
-        "end_delivery_time_window": "16:00",
-        "vehicle_capacity": 60,
-        "max_vehicle_count": 20,
-        "nspeed": 9,
-        "spent_limit": 1,
-        'unimproved_spent_limit': 3600,
-        'start_point_lng':'116.35182201204934',
-        'start_point_lat':'40.06274904947312',
-        # 'end_point_lng':'116.35182201204934',
-        # 'end_point_lat':'40.06274904947312',
-        "orders": [
-        # {
-        #     "order_id":18971,
-        #     "longitude":"116.33609268256963",
-        #     "latitude":"40.06481563685022",
-        #     "begin_time":"12:00",
-        #     "leave_time":"16:00",
-        #     "number":1,
-        #     'transaction_duration': 120
-        # },
-        # {
-        #     "order_id":58975,
-        #     "longitude":"116.33111032088908",
-        #     "latitude":"40.07043354991036",
-        #     "begin_time":"12:00",
-        #     "leave_time":"16:00",
-        #     "number":1,
-        #     'transaction_duration': 120
-        # },
-        # {
-        #     "order_id":47352,
-        #     "longitude":"116.23761791731043",
-        #     "latitude":"40.22641337159427",
-        #     "begin_time":"12:00",
-        #     "leave_time":"16:00",
-        #     "number":1,
-        #     'transaction_duration': 120
-        # },
-        # {
-        #     "order_id":17993,
-        #     "longitude":"116.36860604202833",
-        #     "latitude":"40.069214068668245",
-        #     "begin_time":"12:00",
-        #     "leave_time":"16:00",
-        #     "number":1
-        # },
-        # {
-        #     "order_id":25963,
-        #     "longitude":"116.3688693353733",
-        #     "latitude":"40.06857522812394",
-        #     "begin_time":"12:00",
-        #     "leave_time":"16:00",
-        #     "number":1
-        # },
-        # {
-        #     "order_id":63859,
-        #     "longitude":"116.36860604202833",
-        #     "latitude":"40.069214068668245",
-        #     "begin_time":"12:00",
-        #     "leave_time":"16:00",
-        #     "number":1
-        # },
-        # {
-        #     "order_id":35636,
-        #     "longitude":"116.37040355135379",
-        #     "latitude":"40.06066210483417",
-        #     "begin_time":"12:00",
-        #     "leave_time":"16:00",
-        #     "number":1
-        # },
-        # {
-        #     "order_id":26623,
-        #     "longitude":"116.35945796820637",
-        #     "latitude":"40.06051507614015",
-        #     "begin_time":"12:00",
-        #     "leave_time":"16:00",
-        #     "number":1
-        # },
-        # {
-        #     "order_id":34408,
-        #     "longitude":"116.3702583280781",
-        #     "latitude":"40.06475171592352",
-        #     "begin_time":"12:00",
-        #     "leave_time":"16:00",
-        #     "number":1
-        # },
-        {
-            "order_id":72806,
-            "longitude":"116.35922045622952",
-            "latitude":"40.06789579773766",
-            "begin_time":"12:00",
-            "leave_time":"16:00",
-            "number":1,
-            'transaction_duration': 120
-        },
-        # {
-        #     "order_id":39026,
-        #     "longitude":"116.35968721577251",
-        #     "latitude":"40.06861995268017",
-        #     "begin_time":"12:00",
-        #     "leave_time":"16:00",
-        #     "number":1
-        # },
-        {
-            "order_id":39438,
-            "longitude":"116.35678443134756",
-            "latitude":"40.06747739663491",
-            "begin_time":"12:00",
-            "leave_time":"16:00",
-            "number":1,
-            'transaction_duration': 120
-        },
-        {
-            "order_id":44755,
-            "longitude":"116.35925081895577",
-            "latitude":"40.07000025664513",
-            "begin_time":"12:00",
-            "leave_time":"16:00",
-            "number":1,
-            'transaction_duration': 120
-        },
-        {
-            "order_id":33966,
-            "longitude":"116.35968721577251",
-            "latitude":"40.06861995268017",
-            "begin_time":"12:00",
-            "leave_time":"16:00",
-            "number":1,
-            'transaction_duration': 120
-        },
-        {
-            "order_id":15734,
-            "longitude":"116.35933624780976",
-            "latitude":"40.06967566447348",
-            "begin_time":"12:00",
-            "leave_time":"16:00",
-            "number":1,
-            'transaction_duration': 120
-        },
-        {
-            "order_id":57115,
-            "longitude":"116.35668346180825",
-            "latitude":"40.06783347256438",
-            "begin_time":"12:00",
-            "leave_time":"16:00",
-            "number":1,
-            'transaction_duration': 120
-        }
-        ]}
+    orders_json = "D:\CPRI\项目6-智能派件\output-1102\orders.json"
+    orders = json2dict(orders_json)['速递_1频']
+    
+    # 生成揽投部基础信息表
+    # read_fence()
+    lantoubu_json = 'D:\CPRI\项目6-智能派件\data_lantoubu.json'
+    lantoubu = json2dict(lantoubu_json)
+    
+    start_point = [lantoubu['name'], lantoubu['loc'][0], lantoubu['loc'][1]]
+    url_vrp = 'http://132.10.10.41:8001/api/v1/planroutes_one'   # 车辆路径
+    url_tsp = 'http://132.10.10.41:8001/api/v1/planroutes'       # 排线
 
-    # TODO: 真实数据的经纬度腾讯转百度
-    #       根据电子围栏删除异常点
-    #       点归集
+    orders_new = selecte_orders(orders)
 
-    orders = data_post['orders']
-    start_point = [data_post['node_name'], data_post["start_point_lng"], data_post["start_point_lat"]]
-
-    print(f'共读取到 {len(orders)} 个投递点')
-
-    # draw_orders(orders, start_point)
-    request_api(url=url,data_post=data_post)
+    draw_orders(orders_new, lantoubu)
+    respone_json = request_api(url, orders_new, start_point)
