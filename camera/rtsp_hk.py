@@ -9,10 +9,10 @@ import  cv2
 
 
 # 主码流
-# url = 'rtsp://admin:a12345678@192.168.1.10:554/h264/ch1/main/av_stream'
+url = 'rtsp://admin:hik12345+@192.168.9.11:554/h264/ch1/main/av_stream'
  
 # 子码流
-url = 'rtsp://admin:a12345678@192.168.1.10:554/h264/ch1/sub/av_stream'
+# url = 'rtsp://admin:hik12345+@192.168.9.11:554/h264/ch1/sub/av_stream'
 
 cap = cv2.VideoCapture(url)
 
