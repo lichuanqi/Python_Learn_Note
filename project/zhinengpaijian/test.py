@@ -80,5 +80,18 @@ def merge_list():
     d = [a, b, c]
     print(d)
 
+
+def for_continue():
+
+    for i in range(10):
+
+        if i%2 == 0:
+            
+            continue
+
+        print(f'i = {i} 跳出循环')
+        
+    return True
+
 if __name__ == '__main__':
-    dict_muilt()
+    for_continue()

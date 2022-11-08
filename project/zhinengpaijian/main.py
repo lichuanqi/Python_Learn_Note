@@ -1,4 +1,4 @@
-from operator import le
+import sys
 import re
 import os
 import json
@@ -6,6 +6,11 @@ import json
 import math
 import pandas as pd
 import datetime
+
+from log import log
+logger = log().get_logger()
+
+from isPointinArea import isin_multipolygon
 
 
 class Vividict(dict):
@@ -23,14 +28,16 @@ class AILanTou:
 
     Args
         shixian_path : 时限数据读取路径
+        ltb_path     : 揽投部基础信息
         gjz_path     : 聚合点关键字数据读取路径
         toudi_path   : 投递详细数据读取路径
         gps_path     : GPS数据路径
         savepath     : 数据保存路径
 
     Returns
-        self.shixian_dict [dict]: 时限数据
-        self.gjz [dcit]: 聚合点关键字
+        self.shixian_dict [dict]    : 时限数据
+        self.ltb_area [[]]          : 揽投部电子围栏信息
+        self.gjz [dcit]             : 聚合点关键字
         self.kd_selected [DataFrame]:
         self.bk_selected [DataFrame]:
 
@@ -41,34 +48,45 @@ class AILanTou:
         self.jh_toudiren.json : 聚合点投递人员类型保存
         df_1day_update2.csv   : 更新聚合点的投递频次、投递人数据
     """
-    def __init__(self, shixian_path, gjz_path, bk_path, kd_path, savepath) -> None:
+    def __init__(self, 
+                 shixian_path,
+                 ltb_path,
+                 gjz_path, 
+                 bk_path, 
+                 kd_path, 
+                 savepath
+                 ) -> None:
         
-        print('开始程序初始化')
+        logger.info('开始程序初始化')
         
         # 时限数据
-        print(f'-- 读取时限数据为字典: {shixian_path}')
+        logger.info(f'-- 读取时限数据为字典: {shixian_path}')
         self.shixian_dict = self.get_shixian(shixian_path)
+
+        # 揽投部基础信息
+        logger.info(f'-- 读取揽投部基础信息: {ltb_path}')
+        self.get_ltb(ltb_path)
         
         # 聚合点数据
-        print(f'-- 读取聚合点数据为关键字: {gjz_path}')
+        logger.info(f'-- 读取聚合点数据为关键字: {gjz_path}')
         self.gjz = self.get_keyword(gjz_path)
         
         # 快递和报刊的详细数据，并按条件筛选
         start = datetime.datetime.strptime('20220801 00:01', r'%Y%m%d %H:%M')
         end = datetime.datetime.strptime('20220801 23:59', r'%Y%m%d %H:%M')
-        print(f'-- 筛选指定天的数据: [{start} - {end}]')
+        logger.info(f'-- 筛选指定天的数据: [{start} - {end}]')
         self.kd_selected = self.read_and_select(kd_path, start, end)
-        print(f'---- 快递: 共计 {len(self.kd_selected)} 条数据')
+        logger.info(f'---- 快递: 共计 {len(self.kd_selected)} 条数据')
         self.bk_selected = self.read_and_select(bk_path, start, end)
-        print(f'---- 报刊: 共计 {len(self.bk_selected)} 条数据')
+        logger.info(f'---- 报刊: 共计 {len(self.bk_selected)} 条数据')
 
         # 设置保存路径
         if savepath:
             if not os.path.exists(savepath):
                 os.makedirs(savepath)
-                print(f'-- 保存路径不存在，已新建文件夹: {savepath}')
+                logger.info(f'-- 保存路径不存在，已新建文件夹: {savepath}')
             else:
-                print(f'-- 保存路径存在: {savepath}')
+                logger.info(f'-- 保存路径存在: {savepath}')
             self.savepath = savepath
         else:
             self.savepath = None
@@ -92,6 +110,22 @@ class AILanTou:
 
         return shixian_dict
 
+
+    def get_ltb(self, ltb_path):
+        """
+        读取揽投部基础信息中的
+        Args: 
+            ltb_path: 揽投部基础信息
+        Return:
+            self.ltb_area: 揽投部电子围栏信息
+        """
+        ltb = json2dict(ltb_path)
+        ltb_area = []
+        for i in range(len(ltb['fence'])):
+            ltb_area.append([float(ltb['fence'][i][0]), float(ltb['fence'][i][1])])
+
+        self.ltb_area = ltb_area
+
     
     def get_keyword(self, gjz_path):
         """
@@ -109,7 +143,7 @@ class AILanTou:
             gjz_len.append(len(''.join(row[1])))
 
         (g_min, g_max) = (min(gjz_len), max(gjz_len))
-        print('---- 最短关键词长度: {}\n---- 最长关键词长度: {}'.format(g_min, g_max))
+        logger.info('---- 最短关键词长度: {}\n---- 最长关键词长度: {}'.format(g_min, g_max))
 
         gjz_dict_key = dict(zip(gjz['gjz'].values, gjz_len))
 
@@ -158,7 +192,7 @@ class AILanTou:
         pincis = []     # 投递频次  
         juhedians = []  # 聚合点
 
-        print('开始逐行计算投递频次、聚合点...')
+        logger.info('开始逐行计算投递频次、聚合点...')
         for index, row in kd_selected_add3.iterrows():
 
             # ========= 根据业务类型、邮件类型确定时限要求 =========
@@ -200,7 +234,7 @@ class AILanTou:
             juhedians.append(r)
 
             # ========= 以上几个结果输出一下 =========
-            print(f'i: {index}, leixin: {leixing}, time_xiaduan_h: {time_xiaduan_h}, \
+            logger.debug(f'i: {index}, leixin: {leixing}, time_xiaduan_h: {time_xiaduan_h}, \
                 pinci: {pinci}, juhedian: {r}')
 
         # 数据插入到表中
@@ -212,7 +246,7 @@ class AILanTou:
         if self.savepath:
             save_name = self.savepath + 'kd_selected_add3.csv'
             kd_selected_add3.to_csv(save_name, index=True, header=True)
-            print(f'-- SAVE 新增业务类型、投递频次、聚合点的数据保存至: {save_name}')
+            logger.info(f'-- SAVE 新增业务类型、投递频次、聚合点的数据保存至: {save_name}')
 
 
     def zhu_hang_bk(self):
@@ -236,10 +270,10 @@ class AILanTou:
         bk_selected_add3['yewu'] = '普邮'
 
         # 新建空列表保存数据
-        pincis = []     # 投递频次  
-        juhedians = []  # 聚合点
+        pincis = []      # 投递频次  
+        juhedians = []   # 聚合点
 
-        print('开始逐行计算投递频次、聚合点...')
+        logger.info('开始逐行计算投递频次、聚合点...')
         for index, row in bk_selected_add3.iterrows():
 
             # ========= 根据业务类型、邮件类型确定时限要求 =========
@@ -278,7 +312,7 @@ class AILanTou:
             juhedians.append(r)
 
             # ========= 以上几个结果输出一下 =========
-            print(f'i: {index}, leixin: {leixing}, time_xiaduan_h: {time_xiaduan_h}, \
+            logger.debug(f'i: {index}, leixin: {leixing}, time_xiaduan_h: {time_xiaduan_h}, \
                 pinci: {pinci}, juhedian: {r}')
 
         # 数据插入到表中
@@ -290,7 +324,7 @@ class AILanTou:
         if self.savepath:
             save_name = self.savepath + 'bk_selected_add3.csv'
             bk_selected_add3.to_csv(save_name, index=True, header=True)
-            print(f'-- SAVE 新增业务类型、投递频次、聚合点的数据保存至: {save_name}')
+            logger.info(f'-- SAVE 新增业务类型、投递频次、聚合点的数据保存至: {save_name}')
 
 
     def zhu_juhedian(self):
@@ -319,11 +353,11 @@ class AILanTou:
             jhd.json              : 聚合点所有邮件的频次
             df_1day_update2.csv   : 更新聚合点的投递频次、投递人数据
         """
-        print('统计每个聚合点的邮件数量、频次，确定频次更新情况和投递人...')
+        logger.info('统计每个聚合点的邮件数量、频次，确定频次更新情况和投递人...')
 
         # 逐行循环记录每个聚合点的邮件类型和频次
         jhs = {}
-        print('-- 逐行循环记录每个聚合点的邮件类型和频次: 速递')
+        logger.info('-- 逐行循环记录每个聚合点的邮件类型和频次: 速递')
         for index, row in self.kd_selected_add3.iterrows():
             juhedian = row['juhedian']
             leixing = row['yewu']
@@ -344,7 +378,7 @@ class AILanTou:
                                  '投递人': ''
                                 }
 
-        print('-- 逐行循环记录每个聚合点的邮件类型和频次: 报刊')
+        logger.info('-- 逐行循环记录每个聚合点的邮件类型和频次: 报刊')
         for index, row in self.bk_selected_add3.iterrows():
             juhedian = row['juhedian']
             leixing = row['yewu']
@@ -366,7 +400,7 @@ class AILanTou:
                                 }
 
         # 逐聚合点确定频次更新情况和投递人
-        print('-- 逐聚合点确定频次更新情况和投递人')
+        logger.info('-- 逐聚合点确定频次更新情况和投递人')
         for key, value in jhs.items():
             
             # 更新频次
@@ -391,7 +425,7 @@ class AILanTou:
             # 聚合点所有邮件的频次
             savename_1 = self.savepath + 'jhs.json'
             save_dict2json(jhs, savename_1)
-            print(f'-- SAVE 聚合点数据保存至: {savename_1}')
+            logger.info(f'-- SAVE 聚合点数据保存至: {savename_1}')
 
     
     def update_pinci_toudiren(self):
@@ -399,11 +433,11 @@ class AILanTou:
         将聚合点的频次更新情况和投递人更新到表中
         """
 
-        # 将计算得到的每个聚合点的投递频次和投递人员更新到表中
-        print('将计算得到的每个聚合点的投递频次和投递人员更新到表中: 速递')
+        # 投递频次和投递人员更新到明细表中 - 速递
+        logger.info('将计算得到的每个聚合点的投递频次和投递人员更新到表中: 速递')
         kd_selected_update2 = self.kd_selected_add3.copy()
         kd_selected_update2['pinci_update'] = ' '
-        kd_selected_update2['toudiren'] = ''
+        kd_selected_update2['toudiren'] = ' '
 
         for index, row in kd_selected_update2.iterrows():
             
@@ -424,12 +458,13 @@ class AILanTou:
         if self.savepath:
             save_name_11 = self.savepath + 'kd_selected_update2.csv'
             kd_selected_update2.to_csv(save_name_11, index=True, header=True)
-            print(f'-- SAVE 更新聚合点的投递频次、投递人数据保存至: {save_name_11}')
+            logger.info(f'-- SAVE 更新聚合点的投递频次、投递人数据保存至: {save_name_11}')
 
-        print('将计算得到的每个聚合点的投递频次和投递人员更新到表中: 报刊')
+        # 投递频次和投递人员更新到明细表中 - 报刊
+        logger.info('将计算得到的每个聚合点的投递频次和投递人员更新到表中: 报刊')
         bk_selected_update2 = self.bk_selected_add3.copy()
         bk_selected_update2['pinci_update'] = ' '
-        bk_selected_update2['toudiren'] = ''
+        bk_selected_update2['toudiren'] = ' '
 
         for index, row in bk_selected_update2.iterrows():
             
@@ -450,10 +485,10 @@ class AILanTou:
         if self.savepath:
             save_name_11 = self.savepath + 'bk_selected_update2.csv'
             bk_selected_update2.to_csv(save_name_11, index=True, header=True)
-            print(f'-- SAVE 更新聚合点的投递频次、投递人数据保存至: {save_name_11}')
+            logger.info(f'-- SAVE 更新聚合点的投递频次、投递人数据保存至: {save_name_11}')
 
             
-    def get_orders_yjd(self):
+    def get_orders(self):
         """
         根据明细表提取每个普邮和速递最终的投递点经纬度数据
 
@@ -468,18 +503,22 @@ class AILanTou:
             orders.json: 
 
         """
-        print('根据明细表和确定的投递人提取普邮和速递最终的投递点经纬度数据')
+        logger.info('根据明细表和确定的投递人提取普邮和速递最终的投递点经纬度数据')
 
         order_1_sudi = []
         order_2_sudi = []
         order_1_puyou = []
         order_2_puyou = []
 
-        order_jhd_1 = []
         order_jhd_1_names = []
-        order_jhd_2 = []
+        order_jhd_1_whole = []
+        order_jhd_1_part = {}
         order_jhd_2_names = []
-        
+        order_jhd_2_whole = []
+        order_jhd_2_part = {}
+
+        wai_num = 0 
+
         # 速递
         for index, row in self.kd_selected_update2.iterrows():
 
@@ -491,11 +530,18 @@ class AILanTou:
             lat = row['lat']
             
             # 派件点GPS坐标转为百度坐标系
-            x_new, y_new = gps_GCJ02toBD09(lng, lat)
+            lng_new, lat_new = gps_GCJ02toBD09(lng, lat)
+
+            # 根据经纬度坐标判断是否在电子围栏内
+            point = (lng_new, lat_new)
+            if not isin_multipolygon(point, self.ltb_area, contain_boundary=True):
+                logger.debug(f'速递 {index} 不在电子围栏内跳过')
+                wai_num += 1
+                continue
 
             order = {"order_id": order_id,
-                    "longitude": x_new,
-                    "latitude": y_new,
+                    "longitude": lng_new,
+                    "latitude": lat_new,
                     "begin_time": "12:00",
                     "leave_time": "16:00",
                     "number": 1,
@@ -510,9 +556,14 @@ class AILanTou:
 
                 # 每个聚合点选一个点，其余重复点单独存放
                 if juhedian not in order_jhd_1_names:
-                    order_jhd_1.append(order)
+                    order_jhd_1_whole.append(order)
                     order_jhd_1_names.append(juhedian)
-                
+
+                    order_jhd_1_part[juhedian] = []
+                    order_jhd_1_part[juhedian].append(order)
+                else:
+                    order_jhd_1_part[juhedian].append(order)
+
             elif pinci == 2:
                 if toudiren == '普邮':
                     order_2_sudi.append(order)
@@ -531,21 +582,39 @@ class AILanTou:
             lat = row['lat']
 
             # 派件点GPS坐标转为百度坐标系
-            x_new, y_new = gps_GCJ02toBD09(lng, lat)
+            lng_new, lat_new = gps_GCJ02toBD09(lng, lat)
+
+            # 根据经纬度坐标判断是否在电子围栏内
+            point = (lng_new, lat_new)
+            if not isin_multipolygon(point, self.ltb_area, contain_boundary=True):
+                logger.debug(f'报刊 {index} 不在电子围栏内跳过')
+                wai_num += 1
+                continue
 
             order = {"order_id": order_id,
-                    "longitude": x_new,
-                    "latitude": y_new,
+                    "longitude": lng_new,
+                    "latitude": lat_new,
                     "begin_time": "12:00",
                     "leave_time": "16:00",
                     "number": 1,
                     'transaction_duration': 120}
             
             if pinci == 1:
+                # 每个聚合点的所有派件点
                 if toudiren == '速递':
                     order_1_sudi.append(order)
                 else:
                     order_1_puyou.append(order)
+
+                # 每个聚合点选一个点，其余重复点单独存放
+                if juhedian not in order_jhd_1_names:
+                    order_jhd_1_whole.append(order)
+                    order_jhd_1_names.append(juhedian)
+
+                    order_jhd_1_part[juhedian] = []
+                else:
+                    order_jhd_1_part[juhedian].append(order)
+
             elif pinci == 2:
                 if toudiren == '普邮':
                     order_2_sudi.append(order)
@@ -553,24 +622,25 @@ class AILanTou:
                     order_2_puyou.append(order)
             else:
                 pass
+
+        logger.info(f'共跳过 {wai_num} 个围栏外的派件点')
         
-        # 保存数据
+        # 保存数据 - A
         orders ={'速递_1频': order_1_sudi, '普邮_1频': order_1_puyou, \
                  '速递_2频': order_2_sudi, '普邮_2频': order_2_puyou} 
         savename_1 = self.savepath + 'orders.json'
         save_dict2json(orders, savename_1)
-        print(f'-- SAVE 投递点经纬度数据保存至: {savename_1}')
+        logger.info(f'A方案派件点经纬度数据保存至: {savename_1}')
 
-
-def get_orders_yjd(self):
-    """
-    根据明细表提取每个聚合点第一个投递点经纬度数据
-    """
-
-    order_1 = []
-    order_2 = []
-
-
+        # 保存数据 - B - 每个聚合点一个点坐标
+        orders_new = {'1频': {'整体': order_jhd_1_whole,
+                              '每个聚合点': order_jhd_1_part},
+                      '2频': {'整体': order_jhd_2_whole,
+                              '每个聚合点': order_jhd_2_part}
+                    }
+        savename_2 = self.savepath + 'orders_new.json'
+        save_dict2json(orders_new, savename_2)
+        logger.info(f'B方案派件点经纬度数据保存至: {savename_2}')
 
 
 def str2words(s1) -> list:
@@ -658,7 +728,7 @@ def gps_GCJ02toBD09(lng, lat):
     lng_new = z * math.cos(theta) + 0.0062    #0.0065    #0.00370
 
     # 保留6位小数点
-    lng_new, lat_new = '%.6f'%lng_new, '%.6f'%lat_new
+    lng_new, lat_new = float('%.6f'%lng_new), float('%.6f'%lat_new)
 
     return lng_new, lat_new
 
@@ -667,6 +737,7 @@ if __name__=='__main__':
 
     # 基础数据
     shixian_path = 'D:\CPRI\项目6-智能派件\data_shixian.xlsx'
+    ltb_path = 'D:\CPRI\项目6-智能派件\data_lantoubu.json'
     gjz_path = 'D:\CPRI\项目6-智能派件\data_gjz.xls'
 
     # 报刊数据
@@ -675,9 +746,10 @@ if __name__=='__main__':
     kd_path = "D:\CPRI\项目6-智能派件\data-1101\data_kd_20220801.xlsx"
 
     # 结果保存路径
-    savepath = 'D:/CPRI/项目6-智能派件/output-1102/'
+    savepath = 'D:/CPRI/项目6-智能派件/output-1108/'
 
     run = AILanTou(shixian_path = shixian_path,
+                   ltb_path = ltb_path,
                    gjz_path = gjz_path,
                    bk_path = bk_path,
                    kd_path = kd_path,
@@ -688,4 +760,4 @@ if __name__=='__main__':
     run.zhu_juhedian()
 
     run.update_pinci_toudiren()
-    run.get_orders_yjd()
+    run.get_orders()

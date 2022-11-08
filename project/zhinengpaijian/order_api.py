@@ -1,4 +1,3 @@
-import json
 import time
 import requests
 
@@ -12,6 +11,9 @@ from pyecharts.globals import GeoType
 
 from main import save_dict2json, json2dict
 from isPointinArea import isin_multipolygon
+
+from log import log
+logger = log().get_logger()
 
 
 def read_fence():
@@ -37,7 +39,7 @@ def read_fence():
 
     savename = 'D:\CPRI\项目6-智能派件\data_lantoubu.json'
     save_dict2json(lantoubu, savename)
-    print(f'揽投部基础信息保存至: {savename}')
+    logger.info(f'揽投部基础信息保存至: {savename}')
 
 
 def selecte_orders(orders):
@@ -46,31 +48,37 @@ def selecte_orders(orders):
     Args
         orders [dict,dict]:
     Return
-        orders_new [dict,dict]:
+        order_quchong [dict,dict]:
     """
-    orders_new = []
-    points = []
+    weilannei_num = 0
+    order_quchong = []
+    points = {}
+    
     area = []
     for i in range(len(lantoubu['fence'])):
         area.append([float(lantoubu['fence'][i][0]), float(lantoubu['fence'][i][1])])
 
-    for order in orders:
+    for i,order in enumerate(orders):
+
         lng, lat = float(order['longitude']), float(order['latitude'])
+        point = (float('%.5f'%lng), float('%.5f'%lat))
 
-        point = [float('%.4f'%lng), float('%.4f'%lat)]
+        # 判断是否在电子围栏内
+        if isin_multipolygon(point, area, contain_boundary=True):
+            weilannei_num += 1
+        
+            # 判断是否重复
+            if point not in points.keys():
+                points[point] = len(points)
+                order_quchong.append(order)
 
-        # 去除重复GPS点
-        if point not in points:
-            points.append(point)
+            else:
+                order_quchong[points[point]]['number'] += 1
+                order_quchong[points[point]]['transaction_duration'] += 120
 
-            # 去除电子围栏外的点
-            if isin_multipolygon(point, area, contain_boundary=True):
-                orders_new.append(order)
+    logger.info(f'共 {len(orders)} 个点, 其中 {weilannei_num} 点在电子围栏中, {len(order_quchong)} 个点不重复')
 
-    print(f'共 {len(points)}/{len(orders)} 点不重复')
-    print(f'共 {len(orders_new)}/{len(orders)} 点在电子围栏中')
-
-    return orders_new
+    return order_quchong
 
 
 def draw_orders(orders, lantoubu):
@@ -142,10 +150,10 @@ def draw_orders(orders, lantoubu):
     # 输出为html文件
     savename = 'D:/CPRI/项目6-智能派件/output-1102/order_requests.html'
     geo.render(path=savename)
-    print(f'派件点经纬度可视化结果保存至: {savename}')
+    logger.info(f'派件点经纬度可视化结果保存至: {savename}')
 
 
-def request_api(url, orders, start_point):
+def request_vrp(orders, start_point, savepath):
     """
     请求接口数据
 
@@ -157,6 +165,8 @@ def request_api(url, orders, start_point):
     Return
 
     """
+
+    url_vrp = 'http://132.10.10.41:8001/api/v1/planroutes_one'
 
     data_post = {"calc_guid": "112",
         "dept_code": "10009612",
@@ -176,49 +186,113 @@ def request_api(url, orders, start_point):
         "orders": orders}
 
     start_time = time.time()
-    print(f'开始请求接口: {url}')
+    logger.info(f'共 {len(orders)} 个点,开始请求排线TSP接口: {url_vrp}')
+
     try:
-        response = requests.post(url=url, json=data_post)
+        response = requests.post(url=url_vrp, json=data_post)
         response_json = response.json()
 
         end_time = time.time()
-        print(f'返回值:\n {response_json}')
-        print(f'用时: {end_time-start_time:.4f}')
+        logger.info(f'用时: {end_time-start_time:.4f}')
 
         # 结果保存为 json 文件
-        savename = f'D:/CPRI/项目6-智能派件/output-1028/response_{end_time}.json'
-        save_dict2json(response_json, savename)
-        print(f'接口返回值已保存至: {savename}')
+        save = {'request': orders, 'response': response_json}
+        savename = f'{savepath}request_vrp_{end_time}.json'
+        save_dict2json(save, savename)
+        logger.info(f'接口调用值及返回值已保存至: {savename}')
 
         return response_json
 
     except ConnectionError as f:
-        print(f'连接错误: {f}')
+        logger.info(f'连接错误: {f}')
 
 
-def chuli_respone_json():
+def request_tsp(orders, savepath):
+    """
+    请求排线TSP接口,主要用于计算聚合点内部时间
+
+    Args
+        orders:
+
+    Return
+
+    """
+    url_tsp = 'http://132.10.10.41:8001/api/v1/planroutes_one'       # 排线
+
+    data_post = {"calc_guid": "112",
+        "dept_code": "10009612",
+        "route_id": 3,
+        "node_name": "育新投递部",
+        "one_mail_delivery_duration": 120,
+        "work_duration": 240,
+        "begin_delivery_time_window": "12:00",
+        "end_delivery_time_window": "16:00",
+        "vehicle_capacity": 60,
+        "max_vehicle_count": 20,
+        "nspeed": 10,
+        "spent_limit": 1,
+        'unimproved_spent_limit': 3600,
+        'start_point_lng': orders[0]['longitude'],
+        'start_point_lat': orders[0]['latitude'],
+        "orders": orders}
+
+    logger.info(f'共 {len(orders)} 个点,开始请求排线TSP接口: {url_tsp}')
+
+    try:
+        start_time = time.time()
+        response = requests.post(url=url_tsp, json=data_post)
+        response_json = response.json()
+        end_time = time.time()
+        logger.info(f'用时: {end_time-start_time:.4f}')
+
+        # 结果保存为 json 文件
+        save = {'request': orders, 'response': response_json}
+        savename = f'{savepath}request_tsp_{end_time}.json'
+        save_dict2json(save, savename)
+        logger.info(f'接口调用值及返回值已保存至: {savename}')
+
+        return response_json
+
+    except ConnectionError as f:
+        logger.info(f'连接错误: {f}')
+
+
+def chuli_respone_json(respone):
     """
     根据接口返回值提取时间和距离
+
+    Args
+        respone [json]: 接口返回值
+    Return
+        time_xingshi [int]: 行驶时间
+        time_toudi [int]: 行驶时间
     """
-    respone = {'status': 0, 'message': '成功', 'result': [{'vehicleId': 3, 'dotId': 0, 'arrivetime': 52467, 'departtime': 43200, 'itemnum': 0, 'dealtime': 0, 'dotxlh': 0, 'longitude': 116.351822, 'latitude': 40.062749, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 43232, 'departtime': 43352, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 1, 'longitude': 116.352008, 'latitude': 40.062217, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 43632, 'departtime': 43752, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 2, 'longitude': 116.356809, 'latitude': 40.059056, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 44493, 'departtime': 44613, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 3, 'longitude': 116.342016, 'latitude': 40.065049, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 44776, 'departtime': 44896, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 4, 'rrivetime': 48509, 'departtime': 48629, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 10, 'longitude': 116.370406, 'latitude': 40.06081, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 48979, 'departtime': 49099, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 11, 'longitude': 116.376398, 'latitude': 40.064756, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 49320, 'departtime': 49440, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 12, 'longitude': 116.380348, 'latitude': 40.067101, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 50113, 'departtime': 50233, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 13, 'longitude': 116.39271, 'latitude': 40.060331, 'twindow1': 43200, 'twindow2': 57600}, {'vehicleId': 3, 'dotId': 0, 'arrivetime': 50403, 'departtime': 50523, 'itemnum': 1, 'dealtime': 120, 'dotxlh': 14, 'longitude': 116.395697, 'latitude': 40.062167, 'twindow1': 43200, 'twindow2': 57600 }]}
+    time_xingshi = 0
+    time_toudi = 0
 
-    results = respone.json()['result'][0]
+    results = respone['result']
+    time_whole = results[0]['arrivetime'] - results[0]['departtime']
 
-    arrivetime = results['arrivetime']
-    departtime = results['departtime']
+    for i in range(1, len(results)):
 
+        arrivetime = results[i]['arrivetime']
+        departtime = results[i]['departtime']
 
+        # 投递时间 = 离开时间 - 到达时间
+        toudi = departtime-arrivetime
+        time_toudi += toudi
 
+    # 行驶时间 = 总时间 - 投递时间
+    time_xingshi = time_whole - time_toudi
+    logger.info(f'行驶时间: {time_xingshi}s, 投递时间: {time_toudi}s')
+
+    return time_xingshi, time_toudi
 
 
 if __name__=='__main__':
 
-    # TODO: √ 真实数据的经纬度腾讯转百度
-    #       √ 根据电子围栏删除异常点
-    #       √ 点归集
-
-    orders_json = "D:\CPRI\项目6-智能派件\output-1102\orders.json"
-    orders = json2dict(orders_json)['速递_1频']
+    orders_json = "D:\CPRI\项目6-智能派件\output-1108\orders_new_lite.json"
+    orders = json2dict(orders_json)
     
     # 生成揽投部基础信息表
     # read_fence()
@@ -226,10 +300,63 @@ if __name__=='__main__':
     lantoubu = json2dict(lantoubu_json)
     
     start_point = [lantoubu['name'], lantoubu['loc'][0], lantoubu['loc'][1]]
-    url_vrp = 'http://132.10.10.41:8001/api/v1/planroutes_one'   # 车辆路径
-    url_tsp = 'http://132.10.10.41:8001/api/v1/planroutes'       # 排线
 
-    orders_new = selecte_orders(orders)
+    savepath = 'D:/CPRI/项目6-智能派件/output-1107/'
 
-    draw_orders(orders_new, lantoubu)
-    respone_json = request_api(url, orders_new, start_point)
+    orders_wai = orders['1频']['整体']
+    orders_nei = orders['1频']['每个聚合点']
+
+    # TSP计算每个聚合点内部的行驶时间和投递时间
+    logger.info('开始计算每个聚合点内部的行驶时间和投递时间')
+    i = 0
+    time_xingshi_nei = 0
+    time_toudi_nei = 0
+    for key,value in orders_nei.items(): 
+    
+
+        logger.info(f'{i} 聚合点: {key}')
+
+        # 如果聚合点只有一个点不需要再计算内部时间
+        if len(value) == 1:
+            num, time_xingshi, time_toudi = 1, 0, 120
+        else:
+            order_new = selecte_orders(value)
+            num = len(order_new)
+            # draw_orders(order_new, lantoubu)
+            respone_json = request_tsp(order_new, savepath)
+
+            time_xingshi, time_toudi = chuli_respone_json(respone_json)
+
+        # 根据各聚合点内部数据更新聚合点外部数据
+        orders_wai[i]['number'] = num
+        orders_wai[i]['transaction_duration'] = time_xingshi + time_toudi
+
+        # 累计聚合点内部所有的投递时间和行驶时间
+        time_xingshi_nei += time_xingshi
+        time_toudi_nei += time_toudi
+
+        i += 1
+
+    # 聚合点内部的数量和时间更新至外部
+    orders_update = orders.copy()
+    orders_update['1频']['整体'] = orders_wai
+    orders_update['1频']['每个聚合点'] = orders_nei
+    savepath_1 = savepath + 'orders_new_update.json'
+    save_dict2json(orders_update, savepath_1)
+    logger.info(f'orders已更新至: {savepath_1}')
+    
+    # VRP计算外部聚合点之间的行驶时间
+    logger.info('开始计算外部聚合点之间的行驶时间')
+
+    orders_wai = selecte_orders(orders_wai)
+    draw_orders(orders_wai, lantoubu)
+    respone_json = request_vrp(orders_wai, start_point, savepath)
+
+    time_xingshi_wai, time_toudi = chuli_respone_json(respone_json)
+
+    # 总时间 = 外部聚合点之间的行驶时间 + （聚合点内部的行驶时间和投递时间）
+    time_all = time_xingshi_wai +  time_xingshi_nei + time_toudi_nei
+    # 总行驶距离 = 总行驶时间 * 行驶速度
+    dis_all = (time_xingshi_wai  + time_xingshi_nei) * 2.8
+
+    logger.info(f'总时间: {time_all/3600:.1f}h,总行驶距离 : {dis_all/1000:.1f}km')
