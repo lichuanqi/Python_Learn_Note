@@ -6,6 +6,16 @@ import requests
 import cv2
 
 
+def read_yaml(yaml_path='config.yaml'):
+    """
+    读取yaml文件
+    """
+    with open(yaml_path, 'rb') as f:
+        cfg = yaml.load(f.read(), Loader=yaml.FullLoader)
+
+    return cfg
+
+
 def fetch_token(API_KEY, SECRET_KEY):
     """
     鉴权获取token
@@ -39,10 +49,8 @@ def object_detect(token, img_path=None, img_data=None):
 
 
 if __name__ == '__main__':
-    cfg_path = 'config.yaml'
-    with open(cfg_path, 'rb') as f:
-        cfg = yaml.load(f.read(), Loader=yaml.FullLoader)
-    
+
+    cfg = read_yaml()
     API_KEY = cfg['api']['bd_img']['API_KEY']
     SECRET_KEY = cfg['api']['bd_img']['SECRET_KEY']
     token = fetch_token(API_KEY, SECRET_KEY)
