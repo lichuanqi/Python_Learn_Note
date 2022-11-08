@@ -3,12 +3,18 @@ from loguru import logger
 
 
 class log():
-    def __init__(self) -> None:
+    def __init__(self, savepath=False) -> None:
         self.logger = logger
         # 清空所有设置
         self.logger.remove()
-        # 添加控制台输出的格式,sys.stdout为输出到屏幕
-        self.logger.add(sys.stdout)
+
+        if savepath:
+            # 如果存在保存路径就生成日志文件
+            logname =  savepath + 'log_{time}.log'
+            self.logger.add(logname)
+        else:
+            # 不存在保存路径日志输出到控制台
+            self.logger.add(sys.stdout)
 
     def get_logger(self):
         return self.logger
