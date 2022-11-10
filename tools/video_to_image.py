@@ -4,6 +4,8 @@
 @Email: lc@dlc618.com
 @LastEditTime: 2020-02-24 14:34:16
 '''
+import os
+import glob
 import sys
 from loguru import logger
 
@@ -11,13 +13,14 @@ import cv2
 import time
 
 
-# 相关函数
 def resize_by_width(image,width_new):
     '''
-    @description: 按照给定的宽度对图片进行所需比例的缩放操作
-    @param {image}:读取后的图片
-    @param {width_new}:想要得到的图片宽度
-    @return: 处理后的图片
+    按照给定的宽度对图片进行所需比例的缩放操作
+    Args
+        image       : 读取后的图片
+        width_new   : 想要得到的图片宽度
+    Return:
+        img_new : 处理后的图片
     '''
     x, y, z= image.shape
     rate = width_new / y
@@ -27,9 +30,10 @@ def resize_by_width(image,width_new):
     
     return img_new
 
+
 def crop_image(img, x1, y1, x2,y2):
     """
-    根据坐上角坐标和右小角坐标裁剪图像
+    根据坐上角坐标和右小角坐标裁剪单张图像
     Args
         img   :原图
         x1,y1 :左上角坐标
@@ -38,14 +42,37 @@ def crop_image(img, x1, y1, x2,y2):
     return img[y1:y2, x1:x2]
 
 
+def crop_dir():
+    """
+    剪裁文件夹内的所有图像
+    """
+    
+    dir = 'D:/Data/Expressbox/images/20221109'
+    x1, y1, x2, y2 = 630,280,1920,1080
+    save_path = 'D:/Data/Expressbox/images_crop/'
+
+    imgs = glob.glob(dir + '*.jpg')
+
+    for img in imgs:
+
+        image = cv2.imread(img)
+
+        # 保存路径
+        name = os.path.basename(img)
+        savename = os.path.join(save_path, name) 
+
+        img_new = crop_image(image, x1, y1, x2,y2)
+        cv2.imwrite(savename, img_new)
+        logger.info(f'{img} -> {savename}')
+
+
 def test(img, x1, y1, x2,y2):
     img = cv2.imread('D:/Data/Expressbox/images/20221109_750.jpg')
     x1, y1, x2, y2 = 630,280,1920,1080
     img_new = crop_image(img, x1, y1, x2,y2)
 
 
-if __name__=='__main__':
-
+def video2img():
     # 视频路径
     path = 'D:/Data/Expressbox/v1.mp4'
     # 裁剪区域
@@ -104,4 +131,8 @@ if __name__=='__main__':
     cap.release() #释放视频
     cv2.destroyAllWindows() #释放所有显示图像的窗口
 
+
+if __name__=='__main__':
+
+    video2img()
 
