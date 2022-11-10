@@ -4,6 +4,8 @@
 @Email: lc@dlc618.com
 @LastEditTime: 2020-02-24 14:34:16
 '''
+import sys
+from loguru import logger
 
 import cv2
 import time
@@ -25,52 +27,81 @@ def resize_by_width(image,width_new):
     
     return img_new
 
+def crop_image(img, x1, y1, x2,y2):
+    """
+    根据坐上角坐标和右小角坐标裁剪图像
+    Args
+        img   :原图
+        x1,y1 :左上角坐标
+        x2,y2 :左上角坐标
+    """
+    return img[y1:y2, x1:x2]
 
-# 视频路径并读取
-path = '/media/lcq/Data/modle_and_code/1_video/V50_ma_ren_65s.mp4'
-cap = cv2.VideoCapture(path)
 
-# 输出保存相关数据
-# save_frame_no = []
-# save_frame_no = [200,300,400,500,600,700]
-save_path = '/media/lc/Data/modle_and_code/data/image/'
+def test(img, x1, y1, x2,y2):
+    img = cv2.imread('D:/Data/Expressbox/images/20221109_750.jpg')
+    x1, y1, x2, y2 = 630,280,1920,1080
+    img_new = crop_image(img, x1, y1, x2,y2)
 
-# 参数赋值
-i = 1                            # 视频帧计数器
-time_start = time.time()         # 获取循环开始时间
 
-while cap.isOpened():
-    # 逐帧读取图片
-    ret, frame = cap.read()
+if __name__=='__main__':
 
-    # 图像金字塔
-    frame1 = frame
-    frame2 = cv2.pyrDown(frame)
-    # frame_third = cv2.pyrDown(frame_second)
+    # 视频路径
+    path = 'D:/Data/Expressbox/v1.mp4'
+    # 裁剪区域
+    is_crop = False
+    x1, y1, x2, y2 = 630,280,1920,1080
+    # 保存时间间隔 单位(s)
+    n = 1
+    # 保存路径
+    save_path = 'D:/Data/Expressbox/images/net01_'
 
-    # 颜色转换
-    frame2_hsv = cv2.cvtColor(frame2,cv2.COLOR_BGR2HSV_FULL)
-    image_h, image_s, image_v = cv2.split(frame2_hsv)
+    # 读取视频及属性
+    cap = cv2.VideoCapture(path)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))   #获取原视频的宽
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) #获取原视频的搞
+    fps = int(cap.get(cv2.CAP_PROP_FPS))             #帧率
+    fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))       #视频的编码
+    logger.info(f'视频宽度: {width}, 高度: {height}, 帧率: {fps}')
 
-    # 判断视频是否结束
-    if ret == False:
-        time_used = time.time() - time_start
-        print('视频结束，总处理时间为 %f !'%time_used)
-        break
+    i = 0
+    img_num = 0
+    time_start = time.time()
+    while cap.isOpened():
+        # 逐帧读取图片
+        ret, frame = cap.read()
 
-    print('第 %d 张图片读取成功，正在处理中... ...'%i)
+        # 判断视频是否结束
+        if not ret:
+            time_used = time.time() - time_start
+            logger.info(f'视频结束, 时间{time_used}, 图片数量{img_num}')
+            break
+        logger.info(f'第 {i}张图片读取成功.')
 
-    # 图像的展示
-    cv2.imshow('image_h',image_v)
+        # 判断是否保存
+        if i%(25*n) == 0:
 
-    # 图像数据保存到本地
-    # if i in save_frame_no:
-    #     name_yuantu = save_path + str(i) + '.jpg'
-    #     cv2.imwrite(name_yuantu, frame_first)
-    #     print('----第 %d 帧图像保存到本地！'%i)
+            # 图像裁剪
+            if is_crop:
+                img_new = crop_image(frame, x1, y1, x2, y2)
+            else:
+                img_new = frame
 
-    i += 1
+            # 保存
+            savename = f'{save_path}{i}.jpg'
+            cv2.imwrite(savename, frame)
+            img_num += 1
+            logger.info(f'第 {i} 帧图像已保存: {savename}')
 
-    cv2.waitKey(1)
+        # 图像的展示
+        # cv2.imshow('frame',frame)
+        key = cv2.waitKey(1)
+        if key == ord(' ') or key == ord('q'):
+            break
+
+        i += 1
+
+    cap.release() #释放视频
+    cv2.destroyAllWindows() #释放所有显示图像的窗口
 
 

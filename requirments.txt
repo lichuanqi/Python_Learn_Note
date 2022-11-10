@@ -1,4 +1,0 @@
-opencv-python<4.0
-numpy
-
-loguru
