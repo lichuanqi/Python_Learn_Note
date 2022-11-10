@@ -551,7 +551,7 @@ class AILanTou:
                 logger.debug(f'速递 {index} 不在电子围栏内跳过')
                 wai_num += 1
                 continue
-
+            
             order = {"order_id": order_id,
                     "longitude": lng_new,
                     "latitude": lat_new,
@@ -609,7 +609,7 @@ class AILanTou:
                 logger.debug(f'报刊 {index} 不在电子围栏内跳过')
                 wai_num += 1
                 continue
-
+            
             order = {"order_id": order_id,
                     "longitude": lng_new,
                     "latitude": lat_new,
@@ -617,7 +617,7 @@ class AILanTou:
                     "leave_time": "16:00",
                     "number": 1,
                     'transaction_duration': 120}
-            
+
             if pinci == 1:
                 # A - 聚合点的所有点按照类型、频次存放
                 if toudiren == '速递':
@@ -779,7 +779,7 @@ if __name__=='__main__':
     kd_path = "D:\CPRI\项目6-智能派件\data-1101\data_kd_20220801.xlsx"
 
     # 结果保存路径
-    savepath = 'D:/CPRI/项目6-智能派件/output-1108/'
+    savepath = 'D:/CPRI/项目6-智能派件/output_1110_wt-60/'
 
     logger = log(savepath).get_logger()
 

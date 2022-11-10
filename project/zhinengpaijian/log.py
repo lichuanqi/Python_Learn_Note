@@ -12,9 +12,9 @@ class log():
             # 如果存在保存路径就生成日志文件
             logname =  savepath + 'log_{time}.log'
             self.logger.add(logname)
-        else:
-            # 不存在保存路径日志输出到控制台
-            self.logger.add(sys.stdout)
+        
+        # 不存在保存路径日志输出到控制台
+        self.logger.add(sys.stdout)
 
     def get_logger(self):
         return self.logger
