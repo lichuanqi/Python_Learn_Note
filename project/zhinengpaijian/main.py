@@ -65,9 +65,11 @@ class AILanTou:
         logger.info(f'读取揽投部基础信息: {ltb_path}')
         self.get_ltb(ltb_path)
         
-        # 聚合点数据
+        # 聚合点关键字数据
         logger.info(f'读取聚合点数据为关键字: {gjz_path}')
         self.gjz = self.get_keyword(gjz_path)
+
+        logger.info(f'初始化聚合点数据表')
         
         # 快递和报刊的详细数据，并按条件筛选
         start = datetime.datetime.strptime('20220801 00:01', r'%Y%m%d %H:%M')
@@ -535,7 +537,6 @@ class AILanTou:
         # 速递
         for index, row in self.kd_selected_update2.iterrows():
 
-            order_id = 'kd_' + str(index)
             juhedian = row['juhedian']
             pinci = row['pinci_update']
             toudiren = row['toudiren']
@@ -552,11 +553,11 @@ class AILanTou:
                 wai_num += 1
                 continue
             
-            order = {"order_id": order_id,
+            order = {"order_id": 100000 + index,
                     "longitude": lng_new,
                     "latitude": lat_new,
                     "begin_time": "12:00",
-                    "leave_time": "16:00",
+                    "leave_time": "22:00",
                     "number": 1,
                     'transaction_duration': 120}
 
@@ -593,7 +594,6 @@ class AILanTou:
         # 报刊
         for index, row in self.bk_selected_update2.iterrows():
 
-            order_id = 'bk_' + str(index)
             juhedian = row['juhedian']
             pinci = row['pinci_update']
             toudiren = row['toudiren']
@@ -610,13 +610,13 @@ class AILanTou:
                 wai_num += 1
                 continue
             
-            order = {"order_id": order_id,
+            order = {"order_id": 200000 + index,
                     "longitude": lng_new,
                     "latitude": lat_new,
                     "begin_time": "12:00",
                     "leave_time": "16:00",
                     "number": 1,
-                    'transaction_duration': 120}
+                    'transaction_duration': 5}
 
             if pinci == 1:
                 # A - 聚合点的所有点按照类型、频次存放
@@ -779,7 +779,7 @@ if __name__=='__main__':
     kd_path = "D:\CPRI\项目6-智能派件\data-1101\data_kd_20220801.xlsx"
 
     # 结果保存路径
-    savepath = 'D:/CPRI/项目6-智能派件/output_1110_wt-60/'
+    savepath = 'D:/CPRI/项目6-智能派件/output_1111/'
 
     logger = log(savepath).get_logger()
 

@@ -93,5 +93,10 @@ def for_continue():
         
     return True
 
+def jhd():
+    gjz = {'龙乡': 4, '育新': 0}
+    cols = ['']
+
+
 if __name__ == '__main__':
-    for_continue()
+    
