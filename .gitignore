@@ -25,6 +25,8 @@ __pycache__/
 *.yaml
 *.html
 
+*.db
+
 # other
 sync.sh
 syncignore.txt
