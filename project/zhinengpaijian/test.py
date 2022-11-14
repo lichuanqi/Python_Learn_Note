@@ -94,9 +94,15 @@ def for_continue():
     return True
 
 def jhd():
+    """
+    新建用于储存聚合点数据的DataFrame
+    """
     gjz = {'龙乡': 4, '育新': 0}
-    cols = ['']
+    cols = ['速递件数', '报刊件数', 'order_wai', 'orders_nei', '总时间', '投递时间', '行驶时间']
+
+    jhd_1 = pd.DataFrame(index=gjz.keys(), columns=cols)
+    jhd_1.to_csv('D:\CPRI\项目6-智能派件\output_1111\jhd_1.csv')
 
 
 if __name__ == '__main__':
-    
+    jhd()
