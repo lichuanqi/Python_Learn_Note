@@ -12,7 +12,7 @@ if __name__ == '__main__':
     pool_num = multiprocessing.Pool(3)
     print('主进程：{0}'.format(os.getpid()))
     print('子进程开始咯')
-    for i in range(20):
+    for i in range(3):
         pool_num.apply_async(run_case, args=(i,))
     pool_num.close()
     pool_num.join()
