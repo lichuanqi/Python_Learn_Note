@@ -34,7 +34,7 @@
 │   └── resize_image.py       # 尺寸修改
 ├── audio                     # 音频处理相关
 │   ├── format_convert.py     # *.m4a -> *.wav
-├── packages
+├── packages                  # 一些比较吊的python库
 │   ├── numpy
 │   │   ├── basic.py
 │   │   ├── distance_point.py
@@ -48,9 +48,14 @@
 │   │   ├── plot_02.py
 │   │   ├── scienceplot.py
 │   │   ├── set_font.py
+│   ├── scipy
+│   │   ├── data_fit.py           # 数据拟合        
+│   │   ├── data_smooth_SG.py     # 数据平滑-SG方法
+│   ├── sklearn
+│   │   ├── 
 ├── signal                    # 信号相关
-│   ├── data_fit.py           # 数据拟合                  
-│   └── SG.py                 # SG平滑
+│   ├──           
+│   └──
 ├── test                       
 │   └── vpi.py
 └── tools                     # 小工具
