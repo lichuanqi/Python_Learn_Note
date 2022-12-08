@@ -33,6 +33,7 @@ orders = [{
 # define the national map
 city_map = folium.Map(location=[39.93, 116.40], 
                       zoom_start=10,
-                      tiles='openstreetmap')
+                      tiles='Stamen Terrain')
+
 # save national map
-city_map.save('MapVisualization/byfolium.html')
+city_map.save('map_visualization/byfolium.html')
