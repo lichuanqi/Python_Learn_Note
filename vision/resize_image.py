@@ -4,35 +4,43 @@
 @Email: lc@dlc618.com
 @LastEditTime : 2019-12-31 23:50:07
 '''
-
+from datetime import datetime
 import cv2
 import numpy as np
-import shutil
-import os
- 
- 
-infile = '/media/lc/Data/modle_and_code/data/m2.png'
-image = cv2.imread(infile)
 
-def resize_by_width(image,width_new):
-    '''
-    @description: 按照给定的宽度对图片进行所需比例的缩放操作
-    @param {image}:读取后的图片
-    @param {width_new}:想要得到的图片宽度
-    @return: 处理后的图片
-    '''
-    x, y, z= image.shape
-    print("图片尺寸为为：高度%d 宽度%d 维度%d"%(x, y, z))
+
+def image_resize(image:np.ndarray, width):
+    '''图片尺寸缩放
+    按照给定的宽度对图片进行所需比例的缩放操作
     
-    rate = width_new / y
-    # resize函数输入宽度在前，高度在后 
-    size = (int(y*rate), int(x*rate))
+    Params 
+        {image}    : 读取后的图片
+        {width_new}: 想要得到的图片宽度
+    
+    Return
+        img_new: 处理后的图片
+    '''
+    assert isinstance(image, np.ndarray), '请确定输入参数类型'
+
+    h, w, n = image.shape
+    
+    # 计算缩放比例
+    rate = width / w
+    size = (int(w*rate), int(h*rate))
     img_new = cv2.resize(image, size, interpolation=cv2.INTER_CUBIC)  
     
     return img_new
 
 
-# cv2.imshow('before',image)
-cv2.imshow('after',resize_by_width(image,760))
+if __name__ == '__main__':
+    imfile = "D:/DATASET/ExpressBox/images/20221109_1500.jpg"
+    image = cv2.imread(imfile)
 
-cv2.waitKey(0)
+    ts = datetime.now()
+    img_new = image_resize(image, 200)
+    tu = datetime.now() - ts
+    print(f'Time Used: {tu}')
+
+    # cv2.imshow('before', image)
+    # cv2.imshow('after', img_new)
+    # cv2.waitKey(0)
