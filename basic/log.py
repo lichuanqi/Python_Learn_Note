@@ -1,3 +1,5 @@
+import os
+import sys
 import logging
 from loguru import logger
 
@@ -42,7 +44,7 @@ def log_by_loguru():
                 encoding="utf-8",             # 编码方式
                 enqueue=True,                 # 代表异步写入，多进程同时写入时会用到
                 compression="zip",            # 压缩方式
-                retention="10 days")          # 配置日志的最长保留时间
+                retention="100 days")         # 配置日志的最长保留时间
 
     logger.debug("中文loguru")
     logger.info("中文loguru")
@@ -50,5 +52,40 @@ def log_by_loguru():
     logger.error("中文loguru")
 
 
+class Log():
+    """loguru的封装
+    Params
+        level : 日志等级
+        stdout: 是否输出日志到控制台
+        logdir: 日志保存路径
+        level : 日期等级
+    """
+    def __init__(self,
+                 level='DEBUG',
+                 stdout=True, 
+                 logdir=False) -> None:
+        self.logger = logger
+        self.logger.remove()
+
+        if stdout:
+            # 日志输出到控制台
+            self.logger.add(sys.stdout)
+
+        if logdir:
+            # 保存日志
+            logname = os.path.join(logdir, '{time}.log')
+            self.logger.add(logname, level=level,
+                rotation="100MB", encoding="utf-8",
+                enqueue=True, retention="100 days")
+
+    def get_logger(self):
+        return self.logger
+
+
 if __name__ == "__main__":
-    log_by_loguru()
+    logger = Log().get_logger()
+
+    logger.debug('这是一个debug')
+    logger.info('这是一个info')
+    logger.success('这是一个success')
+    logger.warning('这是一个warning')
