@@ -55,13 +55,20 @@ class read_video_thread():
     def __init__(self, frame_queue, video_url):
 
         self.frame_queue = frame_queue
-        self.cam = cv2.VideoCapture(video_url)
         self.is_running = False  # 状态标签
+        self.cam = cv2.VideoCapture(video_url)
+
+        # 视频基本信息
+        width = int(self.cam.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(self.cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = int(self.cam.get(cv2.CAP_PROP_FPS))
+        print(f'视频基本信息: width={width}, height={height}, fps={fps}')
  
     def capture_queue(self):
         # 捕获图像
         while self.is_running and self.cam.isOpened():
             ret, frame = self.cam.read()
+            
             if not ret:
                 break
             else: 
@@ -112,7 +119,7 @@ class show_image_thread():
 
                 frame_queue.task_done()
             
-            if cv2.waitKey(1)& 0xFF == ord('q'): 
+            if cv2.waitKey(40)& 0xFF == ord('q'): 
                 break
     
     def start_(self):
@@ -126,7 +133,7 @@ if __name__ == '__main__':
 
     # 新建队列保存数据
     frame_queue = Queue()
-    frame_queue.maxsize = 20
+    frame_queue.maxsize = 5
 
     # 多线程读取视频流到队列
     th1 = read_video_thread(frame_queue, VIDOE_1)
