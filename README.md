@@ -1,5 +1,8 @@
 # Python学习笔记 Python Note 
 
+## `Audio_Record_PyQt`
+
+基于PyQt的录音机
 
 # 文件结构
 
