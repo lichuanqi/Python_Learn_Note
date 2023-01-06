@@ -1,9 +1,14 @@
+import sys
 import time
 import numpy as np
 import  cv2
 
 from queue import Queue
 from threading import Thread
+
+sys.path.append('D:/CODE\Python_Learn_Note')
+from basic.log import Log
+logger = Log(logdir='logs').get_logger()
 
 
 # 大平面
@@ -50,19 +55,22 @@ class read_video_thread():
         frame_queue : 保存视频帧的队列
             >>> from queue import Queue
             >>> frame_queue = Queue()
+        qmaxsize    : 队列最大尺寸
         video_url   : RTSP或本地视频地址
     """
-    def __init__(self, frame_queue, video_url):
+    def __init__(self, frame_queue:Queue, qmaxsize, video_url):
 
         self.frame_queue = frame_queue
+        self.qmaxsize = qmaxsize
         self.is_running = False  # 状态标签
         self.cam = cv2.VideoCapture(video_url)
 
         # 视频基本信息
+        logger.info(f'开始读取视频流: {video_url}')
         width = int(self.cam.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(self.cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = int(self.cam.get(cv2.CAP_PROP_FPS))
-        print(f'视频基本信息: width={width}, height={height}, fps={fps}')
+        logger.info(f'视频基本信息: width={width}, height={height}, fps={fps}')
  
     def capture_queue(self):
         # 捕获图像
@@ -72,12 +80,17 @@ class read_video_thread():
             if not ret:
                 break
             else: 
+                # 当队列满时自动删除最旧的一个
+                if self.frame_queue.qsize() == self.qmaxsize:
+                    self.frame_queue.get()
+                    logger.info(f'队列已满, 删除一个')
+
                 self.frame_queue.put(frame)
-                print(f'图像数据已保存至队列, qsize={self.frame_queue.qsize()}')
+                logger.info(f'图像数据已保存至队列, qsize={self.frame_queue.qsize()}')
  
     def start_(self):
         self.is_running = True
-        self.thread_capture = Thread(target=self.capture_queue)
+        self.thread_capture = Thread(target=self.capture_queue, daemon=True)
         self.thread_capture.start()
  
     def stop(self):
@@ -124,7 +137,7 @@ class show_image_thread():
     
     def start_(self):
         self.is_running = True
-        self.thread_capture = Thread(target=self.show_image)
+        self.thread_capture = Thread(target=self.show_image, daemon=True)
         self.thread_capture.start()
 
 
@@ -132,11 +145,11 @@ if __name__ == '__main__':
     # read_rtsp()
 
     # 新建队列保存数据
-    frame_queue = Queue()
-    frame_queue.maxsize = 5
+    qmaxsize = 5
+    frame_queue = Queue(maxsize=qmaxsize)
 
     # 多线程读取视频流到队列
-    th1 = read_video_thread(frame_queue, VIDOE_1)
+    th1 = read_video_thread(frame_queue, qmaxsize, RTSP_DPM_MAIN)
     th1.start_()
 
     # 多线程显示
