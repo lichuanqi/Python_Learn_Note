@@ -12,7 +12,11 @@ class mqtt_test():
         self.broker = '192.168.35.221'
         self.port = 1883
         self.topic = "test/envirment"
-        self.client_id = f'python-mqtt-{random.randint(0, 1000)}'
+        self.client_id = 'pc_python_0001'
+
+    def on_connect(client, userdata, flags, rc, reasonCode, properties):
+        """建立连接后的回调函数"""
+        print("Connected with result code "+str(rc))
 
     def connect_mqtt(self):
         self.client = mqtt_client.Client(client_id=self.client_id,
