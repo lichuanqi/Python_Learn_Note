@@ -1,3 +1,4 @@
+import time
 import cx_Oracle
 cx_Oracle.init_oracle_client(lib_dir="C:/Users/lc/Downloads/instantclient-basic-windows.x64-19.17.0.0.0dbru/instantclient_19_17")
 
@@ -37,16 +38,21 @@ except:
 # print("插入数据完成")
 
 # 查询数据
+time_s = time.time()
 sql3 = """select * from student"""
 s = cursor.execute(sql3)
-print("查询数据完成")
+time_e = time.time()
+print(f"查询数据完成,用时: {time_e-time_s}")
 print(s.fetchmany(3))
 
 # 通配符查询
+time_s = time.time()
 sql = """SELECT * FROM student WHERE daepartment LIKE '%北%工%大%'"""
 s = cursor.execute(sql)
-print("查询数据完成")
+time_e = time.time()
+print(f"查询数据完成,用时: {time_e-time_s}")
 print(s.fetchmany(3))
+
 
 # 当确定不在使用连接时，可以使用connection.close()关闭连接
 cursor.close()
