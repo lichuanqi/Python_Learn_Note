@@ -4,7 +4,8 @@ Detection callback w/ scanner
 Example showing what is returned using the callback upon detection functionality
 Updated on 2020-10-11 by bernstern <bernie@allthenticate.net>
 """
-
+import time
+import numpy as np
 import argparse
 import asyncio
 
@@ -13,10 +14,28 @@ from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 
 
+SCAN_RESULT = {} # 扫描结果
+
+
 def callback_scan(device: BLEDevice, advertisement_data: AdvertisementData):
     """扫描广播的回调函数"""
-    if advertisement_data.local_name:
-        print("- %s: %r"%(device.address, advertisement_data))
+    address = device.address
+    local_name = advertisement_data.local_name
+    manufacturer_data = advertisement_data.manufacturer_data
+    service_uuids = advertisement_data.service_uuids
+    rssi = advertisement_data.rssi
+
+    print("- %s: local_name=%r, rssi=%s"%(address, local_name, rssi))
+
+    # 只保存有名称的
+    if local_name:
+        if address not in SCAN_RESULT:
+            SCAN_RESULT[address] = {
+                'local_name': local_name,
+                'rssis': [],
+            }
+
+        SCAN_RESULT[address]['rssis'].append(rssi)
 
 
 def callback_disconnected(client):
@@ -32,20 +51,38 @@ async def scan(services=None, macos_use_bdaddr=False):
         services: UUIDs of one or more services to filter for
         macos_use_bdaddr: when true use Bluetooth address instead of UUID on macOS
     """
-    services = ['0000181a-0000-1000-8000-00805f9b34fb']
+    services = ['00002a00-0000-1000-8000-00805f9b34fb']
 
     scanner = BleakScanner(
         detection_callback=callback_scan, 
-        service_uuids=services, 
+        # service_uuids=services, 
         cb=dict(use_bdaddr=macos_use_bdaddr)
     )
-    print("(re)starting scanner")
+
+    start_time = time.time()
+    print('开始扫描: %s'%start_time)
+    
     await scanner.start()
     await asyncio.sleep(5.0)
     await scanner.stop()
 
-    device = scanner.discovered_devices
-    print(device)
+    end_time = time.time()
+    print('扫描结束: %s'%end_time)
+
+    for address,data in SCAN_RESULT.items():
+        local_name = data['local_name']
+        rssis = data['rssis']
+
+        rssis_array = np.array(rssis)
+        rssi_max = np.max(rssis_array)
+        rssi_mean = np.mean(rssis_array)
+        rssi_min = np.min(rssis_array)
+
+        print(local_name)
+        print('- address: %s'%address)
+        print('- rssi_max: %s'%rssi_max)
+        print('- rssi_mean: %.0f'%rssi_mean)
+        print('- rssi_min: %s'%rssi_min)
 
 
 async def scan_easy():
@@ -55,7 +92,7 @@ async def scan_easy():
     print("scanning for 5 seconds, please wait...")
 
     devices = await BleakScanner.discover(
-        timeout = 5,
+        timeout = 3,
         return_adv=True
     )
 
@@ -66,7 +103,11 @@ async def scan_easy():
 
 
 async def connect(address=None):
-    """根据mac地址连接蓝牙设备"""
+    """根据mac地址连接蓝牙设备
+    
+    Params
+        address: 设备mac地址
+    """
     address = '08:B6:1F:33:54:A6'
     services = ['0000181a-0000-1000-8000-00805f9b34fb']
 
@@ -112,5 +153,4 @@ async def connect(address=None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    asyncio.run(connect())
+    asyncio.run(scan())
