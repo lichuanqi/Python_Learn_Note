@@ -94,16 +94,5 @@ def main():
     print("The avg CER of text normalization is:", avg_cer)
 
 
-def test_one():
-    TN = TextNormalizer()
-
-    text = '（中国）邮政17路'
-    text_tn_1 = TN.normalize_sentence(text)
-    print(text_tn_1)
-
-
 if __name__ == "__main__":
-    # 测试一条
-    test_one()
-
-    # main()
+    main()

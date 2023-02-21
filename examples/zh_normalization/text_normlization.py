@@ -152,3 +152,20 @@ class TextNormalizer():
         sentences = self._split(text)
         sentences = [self.normalize_sentence(sent) for sent in sentences]
         return sentences
+    
+
+def test_one():
+    """测试单条字符串
+    
+    In:（中国）邮政17路34235部队
+    Out:中国邮政十七路三四二三五部队
+    """
+    TN = TextNormalizer()
+
+    text = '（中国）邮政17路34235部队'
+    text_tn_1 = TN.normalize_sentence(text)
+    print(text_tn_1)
+
+
+if __name__ == "__main__":
+    test_one()
