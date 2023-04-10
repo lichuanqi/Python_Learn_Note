@@ -139,6 +139,7 @@ class TableWindow(QMainWindow):
             {'name':'操作', 'width':200},
         ]
         self.table = NewTableWidget(0, 5, headers)
+        self.table.itemChanged.connect(self.tableUpdate)
 
         # 给按钮绑定动作
         buttom_add.clicked.connect(self.table.table_add_row)
@@ -155,6 +156,10 @@ class TableWindow(QMainWindow):
         self.status_bar = QStatusBar(self)
         self.status_bar.showMessage('初始化完成')
         self.setStatusBar(self.status_bar)
+
+    def tableUpdate(self, item:QTableWidgetItem):
+        row, column = item.row(), item.column()
+        print('table item changed', row, column)
 
 
 if __name__ == '__main__':
