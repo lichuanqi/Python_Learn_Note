@@ -5,7 +5,7 @@ import time
 from api import predict
 
 
-def predict_base(message, history:list=[]):
+def predict_base(message, chatbot, history:list=[]):
     """文本生成主函数
     
     Params
@@ -59,7 +59,7 @@ with gr.Blocks(
     # 输入框回车槽函数
     msg_event = msg.submit(
         fn=predict_base,
-        inputs=[msg, state],
+        inputs=[msg, chatbot, state],
         outputs=[msg, chatbot, state],
         queue=True,
     )
