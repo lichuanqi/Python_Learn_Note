@@ -102,27 +102,7 @@ def chat_by_token(token, message, stream=False):
     return response_json
 
 
-def predict(message, history: list=[]):
-    access_time, access_token = update_access_token(ACCESS_TIME, ACCESS_TOKEN)
-
-    history.append({"role": "user","content": message})
-    reponse = chat_by_token(access_token, history, stream=False)
-
-    # 字符串结果
-    result = reponse["result"]
-    # tokens数
-    prompt_tokens, completion_tokens = reponse["usage"]["prompt_tokens"], reponse["usage"]["completion_tokens"]
-
-    history.append({"role": "assistant","content": result})
-
-    messages = [(history[i]["content"], history[i+1]["content"]) \
-                for i in range(0, len(history)-1, 2)
-    ]
-
-    return "", messages, history
-
-
-def test():
+def run_in_terminal():
     """在终端实现对话"""
     access_time, access_token = update_access_token(ACCESS_TIME, ACCESS_TOKEN)
     messages = []
@@ -153,4 +133,4 @@ def test():
         print('\n')
 
 if __name__ == '__main__':
-    test()
+    run_in_terminal()

@@ -2,11 +2,13 @@ import gradio as gr
 import random
 import time
 
-from api import predict
+from util import wenxin_to_chatbot, chatbot_to_wenxin
+from api import ACCESS_TIME, ACCESS_TOKEN
+from api import update_access_token, chat_by_token
 
 
 def predict_base(message, chatbot, history:list=[]):
-    """文本生成主函数
+    """文本生成主函数, 主要用户调试每次都返回固定的字符串
     
     Params
         message: 输入
@@ -27,7 +29,27 @@ def predict_base(message, chatbot, history:list=[]):
     return "", messages, history
 
 
+def predict_wenxin(message, chatbot):
+    """文本生成主函数, 调用文心一言接口"""
+    access_time, access_token = update_access_token(ACCESS_TIME, ACCESS_TOKEN)
+
+    history = chatbot_to_wenxin(chatbot)
+    history.append({"role": "user","content": message})
+    reponse = chat_by_token(access_token, history, stream=False)
+
+    # 字符串结果
+    result = reponse["result"]
+    # tokens数
+    prompt_tokens, completion_tokens = reponse["usage"]["prompt_tokens"], reponse["usage"]["completion_tokens"]
+
+    history.append({"role": "assistant","content": result})
+    messages = wenxin_to_chatbot(history)
+
+    return "", messages
+
+
 def on_clear():
+    print('已清空历史消息')
     return [], None
 
 
@@ -58,16 +80,16 @@ with gr.Blocks(
 
     # 输入框回车槽函数
     msg_event = msg.submit(
-        fn=predict_base,
-        inputs=[msg, chatbot, state],
-        outputs=[msg, chatbot, state],
+        fn=predict_wenxin,
+        inputs=[msg, chatbot],
+        outputs=[msg, chatbot],
         queue=True,
     )
     # 提交按钮槽函数
     submit_event = submit.click(
-        fn=predict_base,
-        inputs=[msg, state],
-        outputs=[msg, chatbot, state],
+        fn=predict_wenxin,
+        inputs=[msg, chatbot],
+        outputs=[msg, chatbot],
         queue=True,
     )
     # 停止按钮槽函数
