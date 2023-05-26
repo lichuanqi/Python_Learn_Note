@@ -71,13 +71,22 @@ with gr.Blocks(
         placeholder="请输入要提问的问题",
         show_label=False,
     ).style(container=False)
-    
+    gr.Examples(
+        examples=["写一个大学生心理情景剧大赛的参赛剧本，描述大学生活中，少年A从迷茫到找到奋斗方向的故事",
+                  "帮我设计一个可以打出sin函数的代码",
+                  "查一个知识："],
+        inputs=msg,
+        outputs=None,
+        cache_examples=False,
+        label="快速提问"
+    )
+
     with gr.Column():
         with gr.Row():
             submit = gr.Button("Submit")
             stop = gr.Button("Stop")
             clear = gr.Button("Clear")
-
+    
     # 输入框回车槽函数
     msg_event = msg.submit(
         fn=predict_wenxin,
