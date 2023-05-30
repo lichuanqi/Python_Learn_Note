@@ -119,6 +119,9 @@ with gr.Blocks(
 
 demo.queue(max_size=16,
            concurrency_count=2)
-demo.launch(share=False, 
+demo.launch(server_name="0.0.0.0",
+            server_port=7860,
+            show_error=True,
+            share=False, 
             debug=False, 
             enable_queue=True)
