@@ -24,13 +24,18 @@ plt.boxplot(x,                      # x: 指定要绘制箱图的数据
 """
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 plt.rcParams['font.sans-serif'] = ['SimHei'] # 用来显示中文标签
 plt.rcParams['axes.unicode_minus'] = False   # 用来显示负号
 plt.rcParams['savefig.dpi'] = 300
 
 data = np.random.normal(size=(100, 10))
+# print(data)
 
+# 计算
+for data_ in data:
+    print(pd.DataFrame(data_).describe())
 
 plt.figure()
 plt.boxplot(data)
