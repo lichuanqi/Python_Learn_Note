@@ -10,6 +10,14 @@ embedding_model_dict = {
 }
 
 embeddings = HuggingFaceEmbeddings(model_name="packages\langchain_\models\shibing624_text2vec-base-chinese")
+
+# embed_query
 text = "今天几号"
 query_result = embeddings.embed_query(text)
 print(query_result)
+
+
+# embed_document
+# document_file = 'packages/langchain_/test.txt'
+# query_result = embeddings.embed_documents(document_file)
+# print(query_result)
