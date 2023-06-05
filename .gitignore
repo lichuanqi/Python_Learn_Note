@@ -8,6 +8,8 @@
 __pycache__/
 
 /.vscode/
+/packages/langchain_/vectordb/
+/packages/langchain_/models/
 
 # file
 *.bin
