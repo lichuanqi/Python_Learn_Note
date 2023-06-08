@@ -1,3 +1,4 @@
+import sys
 from pprint import pprint
 from langchain.document_loaders import TextLoader
 from langchain.text_splitter import TokenTextSplitter, RecursiveCharacterTextSplitter
@@ -22,15 +23,23 @@ doc_texts = loader.load_and_split(text_splitter=text_splitter)
 
 # document Vector
 embeddings = HuggingFaceEmbeddings(model_name=embedding_model_dict["text2vec3"])
-vectordb = Chroma.from_documents(documents=doc_texts, 
-                                  embedding=embeddings,
-                                  persist_directory=persist_directory)
+# 从保存路径加载向量数据库
+vectordb = Chroma(embedding_function=embeddings,
+                  persist_directory=persist_directory)
+
+# 在保存路径新建空的向量数据库
+# vectordb = Chroma.from_documents(documents=doc_texts, 
+#                                   embedding=embeddings,
+#                                   persist_directory=persist_directory)
+
+# 增加文档
+docids = vectordb.add_documents(documents=doc_texts)
+print(docids)
 
 # vector store
-vectordb.persist()
+# vectordb.persist()
 
-# Vector search
+# # Vector search
 query = "中央主题教育工作会议什么时候召开的"
 docs = vectordb.similarity_search(query)
-
 pprint(docs)
