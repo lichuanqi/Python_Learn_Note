@@ -117,13 +117,17 @@ def hit():
     # plt.show()
 
     # 重量体积二位直方图
-    plt.hist2d(x, 
-               y, 
-               bins=10, 
-               range=[[0, 15], [0, 80]], 
-               weights=predict, 
-               cmap='Blues',
-               norm=colors.LogNorm())
+    h, xedge, yedge, _ = plt.hist2d(x, 
+                                     y, 
+                                     bins=[10, 20], 
+                                     range=[[0, 10], [0, 80]], 
+                                     weights=predict, 
+                                     cmap='Blues',
+                                     norm=colors.LogNorm())
+    print(h)
+    print(xedge)
+    print(yedge)
+
     plt.colorbar()
     plt.show()
 
