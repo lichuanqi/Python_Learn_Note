@@ -133,8 +133,8 @@ def main(appid, api_key, api_secret, gpt_url, question):
 
 if __name__ == "__main__":
     # 测试时候在此处正确填写相关信息即可运行
-    main(appid="32aaafa0",
-         api_key="4fe64908cf009cc70651234f443a6ba7",
-         api_secret="NGRiYmQwZmY3NzFkYzUyNjk3NjRmMzBj",
+    main(appid="",
+         api_key="",
+         api_secret="",
          gpt_url="ws://spark-api.xf-yun.com/v1.1/chat",
          question="你是谁？你能做什么？")

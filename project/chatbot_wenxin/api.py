@@ -5,12 +5,11 @@ import requests
 import json
 
 
-CLIENT_ID = "Kvf6sdZh3aK1Y87EaYxOcI6i"
-CLIENT_SECRET = "6I9bO1BixD7tRz39w7m93tm7Op6mY3Wv"
+CLIENT_ID = ""
+CLIENT_SECRET = "" 
 
-ACCESS_TIME = datetime(2023,5,25,10,32,28)
-ACCESS_TOKEN = "24.1318e602d701102a6baddbfc50a02bd1.2592000.1687594024.282335-33962490"
-
+ACCESS_TIME = ""
+ACCESS_TOKEN = ""
 
 def get_access_token():
     """根据API Key、Secret Key换取access_token"""
