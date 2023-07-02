@@ -48,3 +48,7 @@ datas = [
 # 查看索引数据
 result = es.search(index='test-index', query={"match_all": {}})
 print(result)
+
+# 查看索引数据
+result = es.search(index='test-index', query={"match_all": {}})
+print(result)
