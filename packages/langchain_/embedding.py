@@ -12,6 +12,7 @@ embedding_model_dict = {
     "text2vec": "GanymedeNil/text2vec-large-chinese",
     "text2vec2":"uer/sbert-base-chinese-nli",
     "text2vec3":"packages/langchain_/models/shibing624_text2vec-base-chinese",
+    "m3e-small": "moka-ai/m3e-small"
 }
 persist_directory = 'packages/langchain_/vectordb'
 file_path = 'packages/langchain_/test.txt'
@@ -22,7 +23,7 @@ text_splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=0)
 doc_texts = loader.load_and_split(text_splitter=text_splitter)
 
 # document Vector
-embeddings = HuggingFaceEmbeddings(model_name=embedding_model_dict["text2vec3"])
+embeddings = HuggingFaceEmbeddings(model_name=embedding_model_dict["m3e-small"])
 # 从保存路径加载向量数据库
 vectordb = Chroma(embedding_function=embeddings,
                   persist_directory=persist_directory)
