@@ -9,6 +9,8 @@ from api import update_access_token, chat_by_token
 
 llm_model_dict = {'baidu-wenxin': '',
                   'xunfei-xinghuo': ''}
+knowadge_index_dict = {'不使用本地知识库': '',
+                       'test-index': 'test-index'}
 embedding_model_dict = {"text2vec-base": '',
                         "m3e": ''}
 
@@ -72,13 +74,17 @@ with gr.Blocks(title="LLM",
         with gr.Column(scale=1):
             with gr.Accordion("模型选择"):
                 large_language_model = gr.Dropdown(
-                    list(llm_model_dict.keys()),
+                    choices=list(llm_model_dict.keys()),
                     label="large language model",
                     value=list(list(llm_model_dict.keys()))[0])
                 embedding_model = gr.Dropdown(
-                    list(embedding_model_dict.keys()),
+                    choices=list(embedding_model_dict.keys()),
                     label="Embedding model",
                     value=list(embedding_model_dict.keys())[0])
+                knowadge_index = gr.Dropdown(
+                    choices=list(knowadge_index_dict.keys()),
+                    label="Knowadge index",
+                    value=list(knowadge_index_dict.keys())[0])
             
             with gr.Accordion("上传知识库文件"):
                 upload_file = gr.File(
@@ -86,7 +92,7 @@ with gr.Blocks(title="LLM",
                     file_types=['.txt', '.md', '.docx'])
 
             with gr.Accordion("模型参数配置"):
-                use_web = gr.Radio(["True", "False"],
+                use_web = gr.Radio(choices=["True", "False"],
                                    label="Web Search",
                                    value="False")
                 VECTOR_SEARCH_TOP_K = gr.Slider(
