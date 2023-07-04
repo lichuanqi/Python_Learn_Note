@@ -29,30 +29,45 @@ class DataList():
         
     def read(self):
         if Path(self.filepath).exists():
-            self.data = pd.read_csv(
+            self.dataframe = pd.read_csv(
                 filepath_or_buffer=self.filepath, 
                 index_col=0, 
                 header=0,
                 encoding='utf-8')
-            print('共读取 %s 条数据'%len(self.data.index))
+            print('共读取 %s 条数据'%len(self.dataframe.index))
         else:
             columns = DataItem().__dict__.keys()
-            self.data = pd.DataFrame(columns=columns)
+            self.dataframe = pd.DataFrame(columns=columns)
             print('路径不存在已新建')
 
-    def add(self, data: DataItem):
+    def add(self, _data: DataItem):
         """增加一条数据"""
-        data_dict = data.__dict__
-        self.data = self.data._append(data_dict, ignore_index=True)
-        self.updateFile()
+        if not self.search(_data.file_name):
+            data_dict = _data.__dict__
+            self.dataframe = self.dataframe._append(data_dict, ignore_index=True)
+            self.updateFile()
+            print('数据插入成功')
+        else:
+            print('数据已存在插入失败')
 
-    def search(self):
+    def delete_one(self, file_name):
+        """删除一条数据"""
+        if not self.search(file_name):
+            print('数据不存在')
+        else:
+            pass
+
+    def search(self, file_name) -> bool:
         """根据文件名判断是否已存在"""
+        if file_name in self.dataframe['file_name'].values:
+            return True
+        else:
+            return False
 
     def updateFile(self):
         """文件修改后保存"""
         with open(self.filepath, 'w') as f:  
-            self.data.to_csv(path_or_buf=f, 
+            self.dataframe.to_csv(path_or_buf=f, 
                              index=True,
                              lineterminator='\n',
                              encoding='utf-8')
@@ -121,17 +136,14 @@ def main():
     pprint('检索结果: \n%s'%docs)
 
 def test_datalist():
-
     datapath = 'packages/langchain_/vectordb/filelist_test.csv'
-    data = DataItem(file_name='name',
+    data = DataItem(file_name='name003',
                     file_hash='/name.txt',
                     file_path='hash',
                     doc_ids=['a','b'],
                     add_time=datetime.now())
     datalist = DataList(datapath)
     datalist.add(data)
-
-    
 
 
 if __name__ == '__main__':
