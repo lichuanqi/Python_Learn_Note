@@ -14,3 +14,6 @@ scikit_image==0.19.2
 scipy==1.7.3
 skimage==0.0
 sympy==1.11.1
+
+gradio
+sentence_transformers
