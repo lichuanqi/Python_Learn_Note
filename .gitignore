@@ -33,6 +33,7 @@ __pycache__/
 *.xlsx
 *.ini
 *.db
+*.joblib
 
 # other
 sync.sh

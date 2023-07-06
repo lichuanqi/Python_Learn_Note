@@ -13,29 +13,44 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 from sklearn import datasets
-
+from joblib import dump
 
 # 加载糖尿病数据集
 x,y = datasets.load_diabetes(return_X_y=True)
+print('x shape: %s, y shape: %s'%(x.shape, y.shape))
+
+# 划分训练集和测试集
+X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
+print('训练集: %s条; 测试集: %s条'%(len(X_train), len(X_test)))
 
 
-def test_random_forest():
+def test_random_forest_regressor():
     """随机森林回归 RandomForestRegressor
     
     随机森林是一种元估计器，它在数据集的不同子样本上匹配多个分类决策树，并使用均值来提高预测精度和控制过拟合。
     如果bootstrap=True(默认)，则使用max_samples参数控制子样本的大小，否则将使用整个数据集来构建每棵树。
-    """
-    # 划分训练集和测试集
-    X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
 
+    RandomForestRegressor
+    Params
+        n_estimators 指定集成方法中决策树的数目
+        max_depth: 
+        min_sample_split: 
+        min_samples_leaf:
+        max_features:
+
+    """
     # 训练和预测
-    regressor = RandomForestRegressor(n_estimators=100, min_samples_leaf=5)
+    regressor = RandomForestRegressor()
     regressor.fit(X_train, y_train)
     y_pred = regressor.predict(X_test)
 
+    # 模型持久化
+    model_path = "packages/sklearn/random_forest_regression_model.joblib"
+    dump(regressor, model_path)  
+
     # 计算真实结果与测试结果的拟合度
-    print('sklearn score:{}'.format(r2_score(y_test, y_pred)))
+    print('sklearn score: %.4f'%(r2_score(y_test, y_pred)))
 
 
 if __name__ == "__main__":
-    test_random_forest()
+    test_random_forest_regressor()
