@@ -3,12 +3,18 @@ import sys
 import math
 from pathlib import Path
 from datetime import datetime
+
 import numpy as np
 import pandas as pd 
 from matplotlib import colors
 import matplotlib.pyplot as plt
+from scipy.stats import pearsonr, spearmanr
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import normalize
 from sklearn.neighbors import LocalOutlierFactor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import r2_score
+
 import pymysql
 
 
@@ -146,6 +152,17 @@ class DBMySQL():
         self.conn.close()
 
 
+# 连接数据库
+dbmysql = DBMySQL()
+
+# 重量体积区间
+x_edge = np.array([0,1,2,3,4,5,6,7,8,9,10,40])
+x_label = ['%s-%s'%(x_edge[i], x_edge[i+1]) for i in range(len(x_edge)-1)]
+y_edge = np.array([0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,100])
+y_label = ['%s-%s'%(y_edge[i], y_edge[i+1]) for i in range(len(y_edge)-1)]
+y_mid = np.array([2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62,66,70,74,78,82])
+
+
 def read_data_txt(txtfile):
     """从txt文档中读取重量体积数据
     
@@ -168,7 +185,7 @@ def read_data_txt(txtfile):
             x.append(float(_x))
             y.append(float(_y))
     
-    return x,y
+    return np.array(x), np.array(y)
 
 
 def txt_to_mysql():
@@ -225,7 +242,7 @@ def calculate_matrix_own(x,y):
     return nums
 
 
-def calculate_matrix_np(x,y,x_edge,y_edge):
+def calculate_matrix_np(x,y,x_edge=None,y_edge=None):
     """使用plt.hist2d计算x和y的相关性矩阵"""
     
     # 筛选异常值
@@ -239,21 +256,22 @@ def calculate_matrix_np(x,y,x_edge,y_edge):
     # plt.show()
 
     # 计算二维频数
+    if x_edge is None or y_edge is None:
+        h, xedge, yedge = np.histogram2d(x,y,range=[[0, 20], [0, 100]])
+    else:
+        h, xedge, yedge = np.histogram2d(x, 
+                                         y,
+                                         bins=[x_edge, y_edge],
+                                         range=[[0, 20], [0, 100]])
+        
     # h, xedge, yedge, _ = plt.hist2d(x, 
-    #                                  y, 
-    #                                  bins=[10, 20], 
-    #                                  range=[[0, 10], [0, 80]], 
-    #                                  cmap='Blues',
-    #                                  norm=colors.LogNorm())
-    h, xedge, yedge = np.histogram2d(x, 
-                                     y, 
-                                     bins=[x_edge, y_edge])
-    
-    # print(h.tolist())
-    # print(xedge)
-    # print(yedge)
+    #                                 y, 
+    #                                 bins=[10, 20], 
+    #                                 range=[[0, 10], [0, 80]], 
+    #                                 cmap='Blues',
+    #                                 norm=colors.LogNorm())
 
-    return h
+    return h, xedge, yedge
 
 
 def main_calculate_txt(isshow=False,issave=True):
@@ -346,21 +364,12 @@ def calculate_one(x, y, x_edge, y_edge, y_mid):
 
 def main_calculate_mysql():
     """从MySQL的DWS数据表中拉取重量和体积数据计算相关性矩阵并将结果至结果表"""
-    # 连接数据库
-    dbmysql = DBMySQL()
-
     # 筛选条件
     ORGS = ['合肥蜀山(23000071)']
     LOCATIONS = ['双层+小件机']
     ROUTERS= ['合肥-芜湖']
     DATES = ['202307']
     
-    x_edge = np.array([0,1,2,3,4,5,6,7,8,9,10,40])
-    x_label = ['%s-%s'%(x_edge[i], x_edge[i+1]) for i in range(len(x_edge)-1)]
-    y_edge = np.array([0,4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64,68,72,76,80,100])
-    y_label = ['%s-%s'%(y_edge[i], y_edge[i+1]) for i in range(len(y_edge)-1)]
-    y_mid = np.array([2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62,66,70,74,78,82])
-
     # 计算相关性数据
     for _org in ORGS:
         for _loc in LOCATIONS:
@@ -403,13 +412,20 @@ def main_calculate_mysql():
                     dbmysql.insert_result(tuple(data))
 
 
+def main_inference_txt():
     # 根据相关性矩阵计算数据
+    org = '合肥蜀山(23000071)'
+    loc = '双层+小件机'
+    rout= '合肥-芜湖'
+    date = '202307'
     weightes = [0.9,1.1,2.1]
+
+    # 统计每个重量区间的频数
     we, _ = np.histogram(weightes, bins=x_edge)
     print('重量分布: %s'%we)
 
-    # 拉取计算数据
-    result = dbmysql.select_result(_org,_loc,_rout,_date)
+    # 拉取每个重量区间的平均体积
+    result = dbmysql.select_result(org, loc, rout, date)
     vol = np.array([float(i) for i in np.array(result)[:,1]])
     print('各重量区间平均体积%s'%vol)
     
@@ -421,57 +437,87 @@ def main_calculate_mysql():
 
 def mian_inference_mysql():
     """根据已知数据计算体积"""
-
-    # 统计每个重量区间的频数
-
-    # 每个重量区间的平均体积
+    pass
 
 
+def test_main(isshow=True,issave=False):
+    # 测试数据
+    # x = np.array([1.1,1,2.3,3,3,4,5,5,6,6])
+    # y = np.array([5,5,7,6.7,7,7.5,8,8,8,8])
+    # 真实数据
+    x, y = read_data_txt('project\zhuangzailv\data_dws_hefei.txt')
+    
 
-def test_read_data_txt():
-    x,y = read_data_txt('project/test/data_dws_hefei.txt')
-    print('x len: %s, x len: %s'%(len(x), len(y)))
+    print('================== 数据特征分析 ==================')
+    print('x shape: %s, y shape: %s'%(x.reshape(-1,1).shape, y.shape))
+    
+    # 计算pearsonr相关系数
+    corr_coef, p_value = pearsonr(x, y)
+    print("pearsonr corr_coef: %.4f, p_value: %.4f"%(corr_coef, p_value))
+    
+    # 划分训练集和测试集
+    X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
+    print('训练集: %s条; 测试集: %s条, 总体积: %.2fL'%(len(X_train), len(X_test), sum(y_test)))
 
+    # 使用随机森林算法预测
+    print('================== 随机森林回归预测 ==================')
+    model_path = "project/zhuangzailv/random_forest_regression_model.joblib"
+    regressor = RandomForestRegressor()
+    regressor.fit(X_train.reshape(-1,1), y_train)
+    y_pred = regressor.predict(X_test.reshape(-1,1))
+    print('拟合度r2 score: %.4f, 预测总体积: %.2f'%(r2_score(y_test, y_pred), sum(y_pred)))
 
-def test_calculate_matrix():
-    # 测试相关性矩阵计算
-    x = [1.1,1,2.3,3,3,4,5,5,6,6]
-    y = [5,5,7,6.7,7,7.5,8,8,8,8]
-    savename = 'project/zhuangzailv'
-    calculate_matrix_own(x,y,savename)
+    # 使用相关性概率预测
+    print('================== 相关性概率预测 ==================')
+    frequency_matrix, xedge, yedge = calculate_matrix_np(X_train, y_train, x_edge, y_edge)
+    probability_matrix = normalize(frequency_matrix, axis=1, norm='l1')
+    average_volume = np.dot(y_mid, probability_matrix.T)
+    print('各重量区间平均体积: %s'%average_volume)
 
+    X_test_hist, _ = np.histogram(X_test, bins=x_edge)
+    y_pred = [average_volume[min(int(xx),10)] for xx in X_test]
+    y_pred_volume = np.dot(X_test_hist, average_volume)
+    print('拟合度r2 score: %.4f, 预测总体积: %.2fL'%((r2_score(y_test, y_pred), y_pred_volume)))
 
-def test_main(isshow=True,issave=True):
-    x = [1.1,1,2.3,3,3,4,5,5,6,6]
-    y = [5,5,7,6.7,7,7.5,8,8,8,8]
-    savedir = 'project/zhuangzailv/testdata'
-    savename_map = Path(savedir) / '0626_mat.jpg'
-    savename_csv = Path(savedir) / '0626_mat.csv'
+    # savedir = 'project/zhuangzailv/testdata'
+    # savename_map = Path(savedir) / '0626_mat.jpg'
+    # savename_csv = Path(savedir) / '0626_mat.csv'
 
     # 计算二维频数矩阵
     # nums = calculate_matrix_own(x,y)
-    nums = calculate_matrix_np(x,y)
+    # nums, xedge, yedge = calculate_matrix_np(x,y)
+    # nums, xedge, yedge, _ = plt.hist2d(
+    #     x, 
+    #     y, 
+    #     bins=[10, 40], 
+    #     range=[[0, 20], [0, 100]], 
+    #     cmap='Blues',
+    #     norm=colors.LogNorm())
+    # print('xedge: %s'%xedge)
+    # print('yedge: %s'%yedge)
+
+    plt.show()
 
     # 按行标准化
-    nums_nor = normalize(nums, axis=1, norm='l1')
+    # nums_nor = normalize(nums, axis=1, norm='l1')
 
-    # 绘制矩阵图
-    plt.matshow(nums_nor, cmap=plt.cm.Reds)
-    plt.colorbar()
-    plt.title("matrix A")
-    if issave:
-        plt.savefig(savename_map,dpi=300, bbox_inches='tight')
-    if isshow:
-        plt.show()
+    # # 绘制矩阵图
+    # plt.matshow(nums_nor, cmap=plt.cm.Reds)
+    # plt.colorbar()
+    # plt.title("matrix A")
+    # if issave:
+    #     plt.savefig(savename_map,dpi=300, bbox_inches='tight')
+    # if isshow:
+    #     plt.show()
 
-    # 保存矩阵为csv文件
-    if issave:
-        pd.DataFrame(nums_nor).to_csv(savename_csv)
+    # # 保存矩阵为csv文件
+    # if issave:
+    #     pd.DataFrame(nums_nor).to_csv(savename_csv)
 
 if __name__=="__main__":
     # test_read_data_txt()
     # test_calculate_matrix()
-    # test_main()
+    test_main()
 
     # main_calculate_txt()
-    main_calculate_mysql()
+    # main_calculate_mysql()
