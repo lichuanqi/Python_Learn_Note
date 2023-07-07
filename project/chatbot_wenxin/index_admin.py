@@ -20,7 +20,7 @@ from config import cfg
 
 
 @dataclass
-class DocumentItem():
+class DocumentListItem():
     file_name: str=''
     file_path: str=''
     file_hash: str=''
@@ -29,7 +29,10 @@ class DocumentItem():
 
 
 class DocumentListData():
-    """弥补向量数据库无法实现保存文档基础信息的功能"""
+    """本地知识库文档列表数据
+    
+    弥补向量数据库无法实现保存文档基础信息的功能
+    """
     def __init__(self, filepath):
         self.filepath = filepath
         self.read()
@@ -43,12 +46,12 @@ class DocumentListData():
                 encoding='GB18030')
             print('共读取 %s 条数据'%len(self.dataframe.index))
         else:
-            columns = DocumentItem().__dict__.keys()
+            columns = DocumentListItem().__dict__.keys()
             self.dataframe = pd.DataFrame(columns=columns)
             self.updateFile()
             print('路径不存在已新建')
 
-    def add(self, _data: DocumentItem):
+    def add(self, _data: DocumentListItem):
         """增加一条数据"""
         if not self.search(_data.file_name):
             data_dict = _data.__dict__
@@ -79,75 +82,90 @@ class DocumentListData():
                 index=True,
                 lineterminator='\n',
                 encoding='GB18030')
-            
+
+
+class DocumentVectorData():        
+    """本地知识库向量数据"""
+    def __init__(self,
+                 embedding_model_name,
+                 data_dir) -> None:
+        """
+        Params
+            embedding_model_name
+            list_path
+            vector_dir
+        """
+        list_path = Path(data_dir) / 'filelist.csv'
+        vector_dir = Path(data_dir) / 'vectordb'
+        file_dir = Path(data_dir) / 'filedata'
+
+        self.documentListData = DocumentListData(list_path)
+        self.embeddings = HuggingFaceEmbeddings(model_name=embedding_model_name)
+        self.vectordb = Chroma(
+            embedding_function=self.embeddings,
+            persist_directory=str(vector_dir))
+        
+    def add_file(self, filepath):
+        """增加新的文档"""
+        # 判断文件是否存在
+        if not Path(filepath).exists():
+            print('文件不存在已跳过')
+            return 
+        file_name = Path(filepath).name
+        print('开始处理: %s'%file_name)
+
+        # 判断文件是否已经保存过
+        if self.documentListData.search(file_name):
+            print('x 文档已存在跳过数据持久化')
+            return 
+        
+        # 判断文件类型
+        if Path(filepath).suffix != '.txt':
+            print('目前无法处理此类型文件', Path(filepath).suffix)
+            return
+        
+        print('√ 文档未在列表中开始读取增加、切分、保存: %s'%file_name)
+        loader = TextLoader(file_path=filepath, encoding='utf-8')
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
+        doc_texts = loader.load_and_split(text_splitter=text_splitter)
+        docids = self.vectordb.add_documents(documents=doc_texts)
+        self.vectordb.persist()
+        print('√ 保存向量数据库')
+
+        _file = DocumentListItem(
+            file_name=file_name,
+            file_path=filepath,
+            file_hash='hash',
+            doc_ids=docids,
+            add_time=datetime.now()
+        )
+        self.documentListData.add(_file)
+        print('√ 文档信息保存至csv')
+
+    def similarity_search(self, question:str):
+        vectordb_search = self.vectordb.similarity_search(question)
+        return vectordb_search
+
 
 embedding_model_dict = cfg.readValue('basic', 'embedding_model_dict')
-datadir = cfg.readValue('basic', 'datadir')
-
-filelist_file = Path(datadir) / 'filelist.csv'
-vectordb_dir = Path(datadir) / 'vectordb'
-filedata_dir = Path(datadir) / 'filedata'
-
-documentListData = DocumentListData(filelist_file)
+data_dir = cfg.readValue('basic', 'datadir')
 
 
-def add_one_file():
-    addfile = "D:/CPRI/01_规章制度/食住行/邮政科学研究规划院在职无房职工住房补贴.txt"
-
-    # document Vector
-    embeddings = HuggingFaceEmbeddings(model_name=embedding_model_dict["text2vec3"])
-    vectordb = Chroma(
-        embedding_function=embeddings,
-        persist_directory=str(vectordb_dir))
-
-    # 判断文件是否存在
-    if not Path(addfile).exists():
-        print('文件不存在已跳过')
-        return 
-    file_name = Path(addfile).name
-    print('开始处理: %s'%file_name)
-
-    # 判断文件是否已经保存过
-    if documentListData.search(file_name):
-        print('x 文档已存在跳过数据持久化')
-        return 
-    
-    # 判断文件类型
-    if Path(addfile).suffix != '.txt':
-        print(Path(addfile).suffix)
-        return 
-    
-    print('√ 文档未在列表中开始读取增加、切分、保存: %s'%file_name)
-    loader = TextLoader(file_path=addfile, encoding='utf-8')
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
-    doc_texts = loader.load_and_split(text_splitter=text_splitter)
-    docids = vectordb.add_documents(documents=doc_texts)
-    vectordb.persist()
-    print('√ 保存向量数据库')
-
-    _file = DocumentItem(
-        file_name=file_name,
-        file_path=addfile,
-        file_hash='hash',
-        doc_ids=docids,
-        add_time=datetime.now()
-    )
-    documentListData.add(_file)
-    print('√ 文档信息保存至csv')
+documentVectorData =DocumentVectorData(
+    embedding_model_name=embedding_model_dict["text2vec3"],
+    data_dir=data_dir) 
 
 
-def query_search():
-    # document Vector
-    embeddings = HuggingFaceEmbeddings(model_name=embedding_model_dict["text2vec3"])
-    vectordb = Chroma(
-        embedding_function=embeddings,
-        persist_directory=str(vectordb_dir))
-    
+def test_document_data():
+    # 增加文档
+    file = "D:/CPRI/01_规章制度/食住行/邮政科学研究规划院在职无房职工住房补贴.txt"
+    documentVectorData.add_file(file)
+
+    # 检索
     question = "我是一名新入职的员工我能拿多少住房补贴"
-    vectordb_search = vectordb.similarity_search(question)
-    # print(vectordb_search)
+    vectordb_search = documentVectorData.similarity_search(question)
 
-    # 拼接本地知识库信息
+    # 拼接检索内容
     document_prompt = PromptTemplate(
         input_variables=["page_content"], 
         template="{page_content}")
@@ -171,5 +189,4 @@ def query_search():
 
 
 if __name__ == '__main__':
-    # add_one_file()
-    query_search()
+    test_document_data()
