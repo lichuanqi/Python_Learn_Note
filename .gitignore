@@ -10,6 +10,7 @@ __pycache__/
 /.vscode/
 /packages/langchain_/vectordb/
 /packages/langchain_/models/
+/project/chatbot_wenxin/data
 
 # file
 *.bin

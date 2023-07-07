@@ -4,18 +4,20 @@ from datetime import datetime
 import requests
 import json
 
+from config import cfg
 
-CLIENT_ID = ""
-CLIENT_SECRET = "" 
 
-ACCESS_TIME = ""
-ACCESS_TOKEN = ""
+CLIENT_ID = cfg.readValue('API_BAIDU', 'CLIENT_ID')
+CLIENT_SECRET = cfg.readValue('API_BAIDU', 'CLIENT_SECRET')
+ACCESS_TIME = cfg.readValue('API_BAIDU', 'ACCESS_TIME')
+ACCESS_TOKEN = cfg.readValue('API_BAIDU', 'ACCESS_TOKEN')
 
-def get_access_token():
+
+def get_access_token(client_id, client_secret):
     """根据API Key、Secret Key换取access_token"""
         
     url = "https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&" \
-          "client_id=%s&client_secret=%s"%(CLIENT_ID, CLIENT_SECRET)
+          "client_id=%s&client_secret=%s"%(client_id, client_secret)
 
     payload = json.dumps("")
     headers = {
@@ -31,14 +33,28 @@ def get_access_token():
     return access_time, access_token
 
 
-def update_access_token(access_time:datetime, access_token):
+def update_access_token(access_time, access_token):
     """更新access_token"""
+    global ACCESS_TIME
+    global ACCESS_TOKEN
+
     time_now = datetime.now()
-    if (time_now-access_time).days > 30:
-        access_time, access_token = get_access_token()
-        print('初始化完成, access_token已更新')
-    else:
-        print('初始化完成, 无需更新access_token')
+    if not isinstance(access_time, datetime):
+        access_time = datetime(2023,1,1)
+    if (time_now-access_time).days <= 20:
+        print('无需更新Token')
+        return None, None
+    
+    print('a')
+    access_time, access_token = get_access_token(CLIENT_ID, CLIENT_SECRET)
+    print('a')
+    if access_token is None:
+        return None, None
+    
+    ACCESS_TIME, ACCESS_TOKEN = access_time, access_token
+    cfg.setValue('API_BAIDU', 'ACCESS_TIME', access_time)
+    cfg.setValue('API_BAIDU', 'ACCESS_TOKEN', access_token)
+    print('初始化完成, access_token已更新')
 
     return access_time, access_token
 
@@ -103,7 +119,7 @@ def chat_by_token(token, message, stream=False):
 
 def run_in_terminal():
     """在终端实现对话"""
-    access_time, access_token = update_access_token(ACCESS_TIME, ACCESS_TOKEN)
+    update_access_token(ACCESS_TIME, ACCESS_TOKEN)
     messages = []
     
     while True:
@@ -114,7 +130,7 @@ def run_in_terminal():
             break
 
         messages.append({"role": "user","content": msg})
-        reponse = chat_by_token(access_token, messages, stream=False)
+        reponse = chat_by_token(ACCESS_TOKEN, messages, stream=False)
 
         # 判断错误
         if "error_code" in reponse:
