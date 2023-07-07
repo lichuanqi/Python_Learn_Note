@@ -2,7 +2,7 @@
 import sys
 import math
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime,timedelta
 
 import numpy as np
 import pandas as pd 
@@ -38,6 +38,50 @@ class DBMySQL():
         self.cursor.execute(sql)
         result = self.cursor.fetchall()
         print(result)
+    
+    def select_weight_volume_new(self, 
+                                 _org=None, 
+                                 _loc=None, 
+                                 _rout=None, 
+                                 date_start=None,
+                                 date_end=None):
+        """筛选重量和体积数据
+
+        Params
+            _org        : 机构名称
+            _loc        : 设备安装位置
+            _rout       : 路向
+            date_start  : 开始日期
+            date_end    : 结束日期
+
+        Return
+            x,y
+        """
+        sql = """SELECT calculate_weight,calculate_volume FROM `zzl_dws_data`"""
+
+        if not all([_org, _loc, _rout, date_start, date_end]):
+            return '目前不支持不限制筛选条件'
+        
+        sql += """ WHERE"""
+        if _org is not None:
+            sql += """ org_name='%s'"""%_org
+        if _loc is not None:
+            sql += """ and dws_location='%s'"""%_loc
+        if _rout is not None:
+            sql += """ and email_router='%s'"""%_rout
+        if date_start is not None and date_end is not None:
+            sql += """ and collection_time BETWEEN '%s' AND '%s'"""%(date_start,date_end)
+
+        self.cursor.execute(sql)
+        result = self.cursor.fetchall()
+
+        if not result:
+            return np.array([]), np.array([])
+
+        result_array = np.array(result)
+        x, y = result_array[:,0], result_array[:,1]
+
+        return x, y
 
     def select_weight_volume(self, _org=None, _loc=None, _rout=None, _date=None):
         """筛选重量和体积数据
@@ -334,34 +378,6 @@ def main_calculate_txt(isshow=False,issave=True):
         csvdata.to_csv(savename_csv)
 
 
-def calculate_one(x, y, x_edge, y_edge, y_mid):
-    """根据已知数据计算一次相关性矩阵
-    
-    Params
-        x, y, x_edge, y_edge, y_mid
-    Return
-    
-    """
-    # 统计二位直方图频数
-    nums, _, _ = np.histogram2d(x, 
-                                y, 
-                                bins=[x_edge, y_edge])
-    # 按行标准化
-    nums_nor = normalize(nums, axis=1, norm='l1')
-
-    # 计算每个重量区间的平均体积
-    data = []
-    i = 0
-    for _frequency,_probability in zip(nums,nums_nor):
-        y_averages = np.dot(y_mid, _probability.T)
-        y_frequency = _frequency.tostring()
-        y_probability = _probability.tostring()
-        i += 1
-        data.append((i, y_averages, y_frequency, y_probability))
-
-    return data
-
-
 def main_calculate_mysql():
     """从MySQL的DWS数据表中拉取重量和体积数据计算相关性矩阵并将结果至结果表"""
     # 筛选条件
@@ -435,18 +451,151 @@ def main_inference_txt():
     except Exception as e:
         print(e)
 
-def mian_inference_mysql():
-    """根据已知数据计算体积"""
+
+def calculate_one_time(
+        w_edge,
+        v_edge,
+        batch_id,
+        date_start,
+        date_end,
+        _org,
+        _loc,
+        _rout):
+    """计算一次
+    
+    Params
+        w_edge,
+        v_edge,
+        batch_id,
+        date_start,
+        date_end,
+        _org,
+        _loc,
+        _rout
+
+    Return
+
+    """
+    print('开始计算%s %s %s'%(_org,_loc,_rout))
+
+    # 查看数据是否存在
+    result = dbmysql.select_result(_org,_loc,_rout,batch_id)
+    if len(result) > 6:
+        print('× 存在数据已跳过')
+        return
+
+    # 拉取DWS数据计算
+    x, y = dbmysql.select_weight_volume_new(_org,_loc,_rout,date_start,date_end)
+    if len(x) == 0:
+        print('× 未拉取到相关DWS数据')
+        return 
+    if len(x) < 3000:
+        print('× 数据量%s<3000，跳过'%len(x))
+        return
+    print('√ 拉取数据共%s条'%len(x))
+    
+    # 开始计算
+    nums, xedge, yedge = np.histogram2d(x, 
+                                        y,
+                                        bins=[w_edge, v_edge])
+    nums_nor = normalize(nums, axis=1, norm='l1')
+    print('√ 计算相关性矩阵')
+
+    # 保存至数据库
+    data = []
+    i = 0
+    v_mid = v_edge[:-1] + 1
+    for _frequency,_probability in zip(nums,nums_nor):
+        y_averages = np.dot(v_mid, _probability.T)
+        y_frequency = _frequency.tobytes()
+        y_probability = _probability.tobytes()
+        i += 1
+        data.append((_org, _loc, _rout, batch_id, i, y_averages, y_frequency, y_probability))
+    dbmysql.insert_result(tuple(data))
+    print('√ 计算结果保存至数据库')
+
+
+def calculate_mysql():
+    """从数据库拉取数据计算并将计算结果保存至数据库
+
+    ChangLog
+        20230707: 调整计算频数和数据周期
+    """
+    # 参数
+    cal_period = 7                   # 每隔几天计算一次
+    cal_length = 28                  # 每次计算使用前几天的数据
+    date_start = datetime(2023,7,1)  # 开始日期
+    date_end = datetime(2023,7,14)   # 结束日期
+
+    # 重量和体积区间
+    w_edge = np.linspace(0, 10, num=50, endpoint=True)
+    v_edge = np.linspace(0, 60, num=30, endpoint=True)
+
+    # 根据起止日期计算要计算的批次数
+    day_start = (date_start-datetime(date_start.year,1,1)).days + 1         # 开始日期是一年中的第几天
+    day_end = (date_end-datetime(date_start.year,1,1)).days + 1             # 结束日期是一年中的第几天
+    if day_start%cal_period == 0:                                           # 开始日期的批次数
+        batch_start = day_start // cal_period                               
+    else:
+        batch_start = day_start // cal_period + 1
+    if day_end%cal_period == 0:                                             # 结束日期的批次数
+        batch_end = day_end // cal_period
+    else:
+        batch_end = day_end // cal_period + 1
+    if batch_end-batch_start <= 0:
+        print('起止时间不足一个计算频次')
+    print('%s - %s 共需要计算%s批次'%(date_start,date_end,batch_end-batch_start))
+
+    # 逐批次计算
+    for batch_index in range(batch_start, batch_end):
+        date_end_batch = datetime(date_start.year, 1, 1) + timedelta(days=batch_index*cal_period-1)
+        date_start_batch = date_end_batch + timedelta(days=-cal_length)
+        batch_id = date_start.year * 100 + batch_index
+        print('批次%s: %s - %s'%(batch_id, date_start_batch, date_end_batch))
+
+        # 先从数据库中检索组织机构 设备位置 路向的可选项
+        orgs = ['合肥蜀山(23000071)']
+        locations = ['双层+小件机']
+        routers= ['合肥-芜湖']
+
+        for _org in orgs:
+            for _loc in locations:
+                for _rout in routers:
+                    calculate_one_time(
+                        w_edge,
+                        v_edge,
+                        batch_id,
+                        date_start_batch,
+                        date_end_batch,
+                        _org,
+                        _loc,
+                        _rout)
+
+
+def test_calculate_one_time():
+    # w_edge = np.linspace(0, 10, num=50, endpoint=True)
+    # v_edge = np.linspace(0, 60, num=30, endpoint=True)
+
+
+    # calculate_one_time(
+    #     w_edge,
+    #     v_edge,
+    #     batch_id,
+    #     date_start_batch,
+    #     date_end_batch,
+    #     _org,
+    #     _loc,
+    #     _rout)
     pass
 
 
 def test_main(isshow=True,issave=False):
+    """数据分析"""
     # 测试数据
     # x = np.array([1.1,1,2.3,3,3,4,5,5,6,6])
     # y = np.array([5,5,7,6.7,7,7.5,8,8,8,8])
     # 真实数据
     x, y = read_data_txt('project\zhuangzailv\data_dws_hefei.txt')
-    
 
     print('================== 数据特征分析 ==================')
     print('x shape: %s, y shape: %s'%(x.reshape(-1,1).shape, y.shape))
@@ -517,7 +666,8 @@ def test_main(isshow=True,issave=False):
 if __name__=="__main__":
     # test_read_data_txt()
     # test_calculate_matrix()
-    test_main()
+    calculate_mysql()
+    # test_main()
 
     # main_calculate_txt()
     # main_calculate_mysql()
