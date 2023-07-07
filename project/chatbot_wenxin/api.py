@@ -45,9 +45,7 @@ def update_access_token(access_time, access_token):
         print('无需更新Token')
         return None, None
     
-    print('a')
     access_time, access_token = get_access_token(CLIENT_ID, CLIENT_SECRET)
-    print('a')
     if access_token is None:
         return None, None
     
