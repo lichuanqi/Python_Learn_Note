@@ -3,10 +3,9 @@ import random
 import time
 
 from util import wenxin_to_chatbot, chatbot_to_wenxin
-from api import ACCESS_TIME, ACCESS_TOKEN
 from api import update_access_token, chat_by_token
-
 from config import cfg
+from index_admin import documentVectorData,search_to_strings,message_to_input
 
 
 llm_model_dict = cfg.readValue("basic", "llm_model_dict")
@@ -43,11 +42,11 @@ def request_api_base(message, chatbot):
 
 def request_api_wenxin(message, chatbot):
     """文本生成主函数, 调用文心一言接口"""
-    update_access_token(ACCESS_TIME, ACCESS_TOKEN)
+    update_access_token()
 
     history = chatbot_to_wenxin(chatbot)
     history.append({"role": "user","content": message})
-    reponse = chat_by_token(ACCESS_TOKEN, history, stream=False)
+    reponse = chat_by_token(history, stream=False)
 
     # 字符串结果
     result = reponse["result"]
@@ -60,17 +59,17 @@ def request_api_wenxin(message, chatbot):
     return "", messages
 
 
-def onButtomSubmit(use_knowadge, 
+def onButtomSubmit(chat_mode, 
                    vector_search_top_k, 
                    history_len, 
                    temperature, 
                    top_p, 
-                   message, 
-                   chatbot):
+                   question, 
+                   history):
     """"提交按钮槽函数
 
     Params
-        use_knowadge        : 是否使用本地知识库
+        chat_mode        : 是否使用本地知识库
         vector_search_top_k : 向量数据库检索TOP K
         history_len,        : 最大对话轮数
         temperature, 
@@ -82,24 +81,37 @@ def onButtomSubmit(use_knowadge,
         message
         chatbot
     """
-    # 拼接本地知识库内容
-    if use_knowadge == "是":
-        print('使用本地知识库检索')
+    history_wx = chatbot_to_wenxin(history)
+
+    # 根据对话模型拼接用户输入
+    if chat_mode == "本地知识库对话-test-index":
+        vectordb_search = documentVectorData.similarity_search(question)
+        doc_strings = search_to_strings(vectordb_search)
+        content = message_to_input(question, doc_strings)
+        print('本地知识库对话')
+        
+    elif chat_mode == "文档对话-不使用本地知识库":
+        content = question
+        print('文档对话')
+
+    else:
+        content = question
+        print('通用对话')
+    
+    # 拼接历史对话
+    history_wx.append({"role": "user","content": content})
 
     # 调用API接口
-    history = chatbot_to_wenxin(chatbot)
-    history.append({"role": "user","content": message})
-
-    update_access_token(ACCESS_TIME, ACCESS_TOKEN)
-    reponse = chat_by_token(ACCESS_TOKEN, history, stream=False)
+    update_access_token()
+    reponse = chat_by_token(history_wx, stream=False)
     result = reponse["result"]
     
     # 统计tokens数
     prompt_tokens, completion_tokens = reponse["usage"]["prompt_tokens"], reponse["usage"]["completion_tokens"]
-    history.append({"role": "assistant","content": result})
-    messages = wenxin_to_chatbot(history)
+    history_wx.append({"role": "assistant","content": result})
+    history_chatbot = wenxin_to_chatbot(history_wx)
 
-    return "", messages
+    return "", history_chatbot
 
 
 def onButtomClear():
@@ -119,11 +131,11 @@ def main():
 
         with gr.Row():
             with gr.Column(scale=1):
-                with gr.Accordion("本地知识库"):
-                    use_knowadge = gr.Radio(
+                with gr.Accordion("对话模式"):
+                    chat_mode = gr.Radio(
                         label="use knowadge",
                         choices=knowadge_choices,
-                        value="不使用")
+                        value=knowadge_choices[0])
                     embedding_model = gr.Dropdown(
                         label="Embedding model",
                         choices=embedding_choices,
@@ -167,12 +179,16 @@ def main():
                         interactive=True)
 
             with gr.Column(scale=4):
-                chatbot = gr.Chatbot(height=450)
-                msg = gr.Textbox(
-                    label="Chat Message Box",
-                    placeholder="请输入要提问的问题",
-                    show_label=False,
-                    container=False)
+                chatbot = gr.Chatbot(height=480)
+
+                with gr.Row():
+                    msg = gr.Textbox(
+                        label="Chat Message Box",
+                        placeholder="请输入要提问的问题",
+                        show_label=False,
+                        container=False,
+                        scale=5)
+                    submit = gr.Button("Submit",scale=1)
                 
                 gr.Examples(
                     examples=[
@@ -184,23 +200,21 @@ def main():
                     cache_examples=False,
                     label="快速提问")
 
-                with gr.Column():
-                    with gr.Row():
-                        submit = gr.Button("Submit")
-                        stop = gr.Button("Stop")
-                        clear = gr.Button("Clear")
+                with gr.Row():
+                    stop = gr.Button("Stop")
+                    clear = gr.Button("Clear")
         
         # 输入框回车槽函数
         msg_event = msg.submit(
             fn=onButtomSubmit,
-            inputs=[use_knowadge, vector_search_top_k, 
+            inputs=[chat_mode, vector_search_top_k, 
                     history_len, temperature, top_p, msg, chatbot],
             outputs=[msg, chatbot],
             queue=True)
         # 提交按钮槽函数
         submit_event = submit.click(
             fn=onButtomSubmit,
-            inputs=[use_knowadge, vector_search_top_k, 
+            inputs=[chat_mode, vector_search_top_k, 
                     history_len, temperature, top_p, msg, chatbot],
             outputs=[msg, chatbot],
             queue=True)

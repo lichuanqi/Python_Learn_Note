@@ -3,12 +3,14 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from pprint import pprint
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Type
 from dataclasses import dataclass, field
 
 import pandas as pd
-from langchain.document_loaders import TextLoader
+from langchain.document_loaders import TextLoader, Docx2txtLoader
 from langchain.text_splitter import TokenTextSplitter, RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.docstore.document import Document
 from langchain.vectorstores import Chroma
 from langchain.chains import RetrievalQA
 from langchain.chains.combine_documents.base import (
@@ -23,6 +25,7 @@ from config import cfg
 class DocumentListItem():
     file_name: str=''
     file_path: str=''
+    file_category: str=''
     file_hash: str=''
     doc_ids: list=field(default_factory=list)
     add_time: str=''
@@ -120,12 +123,16 @@ class DocumentVectorData():
             return 
         
         # 判断文件类型
-        if Path(filepath).suffix != '.txt':
+        print('√ 文档未在列表中, 开始文档读取: %s'%file_name)
+        if Path(filepath).suffix == '.txt':
+            loader = TextLoader(file_path=filepath, encoding='utf-8')
+        elif Path(filepath).suffix == '.docx':
+            loader = Docx2txtLoader(filepath)
+        else:
             print('目前无法处理此类型文件', Path(filepath).suffix)
             return
         
-        print('√ 文档未在列表中开始读取增加、切分、保存: %s'%file_name)
-        loader = TextLoader(file_path=filepath, encoding='utf-8')
+        print('√ 开始文档切分')
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=0)
         doc_texts = loader.load_and_split(text_splitter=text_splitter)
         docids = self.vectordb.add_documents(documents=doc_texts)
@@ -153,40 +160,57 @@ data_dir = cfg.readValue('basic', 'datadir')
 
 documentVectorData =DocumentVectorData(
     embedding_model_name=embedding_model_dict["text2vec3"],
-    data_dir=data_dir) 
+    data_dir=data_dir)
 
 
-def test_document_data():
-    # 增加文档
-    file = "D:/CPRI/01_规章制度/食住行/邮政科学研究规划院在职无房职工住房补贴.txt"
-    documentVectorData.add_file(file)
-
-    # 检索
-    question = "我是一名新入职的员工我能拿多少住房补贴"
-    vectordb_search = documentVectorData.similarity_search(question)
-
-    # 拼接检索内容
+def search_to_strings(vectordb_search:List[Document]):
+    """将本地知识库检索到的内容拼接成一个字符串"""
     document_prompt = PromptTemplate(
         input_variables=["page_content"], 
         template="{page_content}")
     doc_strings = [format_document(doc, document_prompt) for doc in vectordb_search]
-    # print(doc_strings)
 
-    # 拼接大语言模型输入信息
+    return doc_strings
+
+
+def message_to_input(question, doc_strings):
+    """把已知信息和用户输入问题拼接成一个字符串"""
     chat_template = """基于以下已知信息，简洁和专业的来回答用户的问题。如果无法从中得到答案，请说 "根据已知信息无法回答该问题" 或 "没有提供足够的相关信息"，不允许在答案中添加编造成分。
-    已知网络检索内容：{web_content}
-    已知内容: {context}
+    已知信息: {context}
     问题: {question}
     """
     chat_prompt= PromptTemplate(
-        input_variables=["web_content", "context", "question"], 
+        input_variables=["context", "question"], 
         template=chat_template)
     chat_strings = chat_prompt.format(
-        web_content='无', 
         context=doc_strings, 
         question=question)
+    
+    return chat_strings
+
+
+def test_document_add():
+    """测试给本地知识库增加文档"""
+    # file = "D:/CPRI/01_规章制度/食住行/邮政科学研究规划院在职无房职工住房补贴.txt"
+    file = "D:/CPRI/项目-大语言模型/本地知识库文档/院人力/人力资源部现行规章制度汇编（2022年12月）.docx"
+    # file = "D:/CPRI/项目-大语言模型/本地知识库文档/董事长讲话/董事长2023年寄递工作会讲话.docx"
+    documentVectorData.add_file(file)
+
+
+def test_document_search():
+    """测试从本地知识库检索文档"""
+
+    # 检索并拼接
+    question = "我有点私事想请5天假，需要走什么流程"
+    vectordb_search = documentVectorData.similarity_search(question)
+    doc_strings = search_to_strings(vectordb_search)
+    # print(doc_strings)
+
+    # 拼接大语言模型输入信息
+    chat_strings = message_to_input(question, doc_strings)
     print(chat_strings)
 
 
 if __name__ == '__main__':
-    test_document_data()
+    # test_document_add()
+    test_document_search()
