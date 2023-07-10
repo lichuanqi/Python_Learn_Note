@@ -149,8 +149,8 @@ class DocumentVectorData():
         self.documentListData.add(_file)
         print('√ 文档信息保存至csv')
 
-    def similarity_search(self, question:str):
-        vectordb_search = self.vectordb.similarity_search(question)
+    def similarity_search(self, question:str, k=4):
+        vectordb_search = self.vectordb.similarity_search(question, k=k)
         return vectordb_search
 
 
@@ -163,27 +163,27 @@ documentVectorData =DocumentVectorData(
     data_dir=data_dir)
 
 
-def search_to_strings(vectordb_search:List[Document]):
+def combine_search_context(vectordb_search:List[Document], max_length=1900):
     """将本地知识库检索到的内容拼接成一个字符串"""
     document_prompt = PromptTemplate(
         input_variables=["page_content"], 
         template="{page_content}")
-    doc_strings = [format_document(doc, document_prompt) for doc in vectordb_search]
+    search_context = [format_document(doc, document_prompt) for doc in vectordb_search]
 
-    return doc_strings
+    return search_context
 
 
-def message_to_input(question, doc_strings):
+def combine_context_question(question:str, context:str):
     """把已知信息和用户输入问题拼接成一个字符串"""
-    chat_template = """基于以下已知信息，简洁和专业的来回答用户的问题。如果无法从中得到答案，请说 "根据已知信息无法回答该问题" 或 "没有提供足够的相关信息"，不允许在答案中添加编造成分。
-    已知信息: {context}
-    问题: {question}
+    chat_template = """亲爱的AI伙伴，现在我将与您一起探索本地知识库，请根据从本地知识库中检索到的已知信息，以简洁和专业的态度回答以下问题。请确保在回答过程中，严格遵循已知信息，并确保答案的准确性和可靠性。当无法在已知信息中找到确切的答案时，请尽力分析已知信息，并结合相关知识和推理，给出基于已知信息的最佳解答，请明确指出哪些答案是基于已知信息提供的，哪些可能需要进一步推敲和验证。
+    已知信息: {context}。
+    问题: {question}。
     """
     chat_prompt= PromptTemplate(
         input_variables=["context", "question"], 
         template=chat_template)
     chat_strings = chat_prompt.format(
-        context=doc_strings, 
+        context=context, 
         question=question)
     
     return chat_strings
@@ -192,7 +192,7 @@ def message_to_input(question, doc_strings):
 def test_document_add():
     """测试给本地知识库增加文档"""
     # file = "D:/CPRI/01_规章制度/食住行/邮政科学研究规划院在职无房职工住房补贴.txt"
-    file = "D:/CPRI/项目-大语言模型/本地知识库文档/院人力/人力资源部现行规章制度汇编（2022年12月）.docx"
+    file = "D:/CPRI/项目-大语言模型/本地知识库文档/院科研成果/寄递业务三个视角“对标立标达标”研究.docx"
     # file = "D:/CPRI/项目-大语言模型/本地知识库文档/董事长讲话/董事长2023年寄递工作会讲话.docx"
     documentVectorData.add_file(file)
 
@@ -201,16 +201,16 @@ def test_document_search():
     """测试从本地知识库检索文档"""
 
     # 检索并拼接
-    question = "我有点私事想请5天假，需要走什么流程"
-    vectordb_search = documentVectorData.similarity_search(question)
-    doc_strings = search_to_strings(vectordb_search)
-    # print(doc_strings)
+    question = "驴唇不对马嘴什么意思"
+    vectordb_search = documentVectorData.similarity_search(question,k=3)
+    search_context = combine_search_context(vectordb_search, max_length=1800)
+    # print(search_context)
 
     # 拼接大语言模型输入信息
-    chat_strings = message_to_input(question, doc_strings)
+    chat_strings = combine_context_question(question, search_context)
     print(chat_strings)
 
 
 if __name__ == '__main__':
-    # test_document_add()
-    test_document_search()
+    test_document_add()
+    # test_document_search()

@@ -5,7 +5,7 @@ import time
 from util import wenxin_to_chatbot, chatbot_to_wenxin
 from api import update_access_token, chat_by_token
 from config import cfg
-from index_admin import documentVectorData,search_to_strings,message_to_input
+from index_admin import documentVectorData,combine_search_context,combine_context_question
 
 
 llm_model_dict = cfg.readValue("basic", "llm_model_dict")
@@ -82,16 +82,23 @@ def onButtomSubmit(chat_mode,
         chatbot
     """
     history_wx = chatbot_to_wenxin(history)
+    result = ''
 
     # 根据对话模型拼接用户输入
     if chat_mode == "本地知识库对话-test-index":
-        vectordb_search = documentVectorData.similarity_search(question)
-        doc_strings = search_to_strings(vectordb_search)
-        content = message_to_input(question, doc_strings)
+        vectordb_search = documentVectorData.similarity_search(question, k=3)
+        doc_strings = combine_search_context(vectordb_search, max_length=1900)
+
+        # TODO: 当本地知识库检索结果为空时直接返回
+        if len(doc_strings) <= 0:
+            result = '根据您的问题，没有匹配到任何内容。'
+
+        content = combine_context_question(question, doc_strings)
         print('本地知识库对话')
         
     elif chat_mode == "文档对话-不使用本地知识库":
         content = question
+        result = '文档对话暂不支持'
         print('文档对话')
 
     else:
@@ -102,12 +109,18 @@ def onButtomSubmit(chat_mode,
     history_wx.append({"role": "user","content": content})
 
     # 调用API接口
-    update_access_token()
-    reponse = chat_by_token(history_wx, stream=False)
-    result = reponse["result"]
+    if result == '':
+        update_access_token()
+        reponse = chat_by_token(history_wx, stream=False)
+        
+        # 判断接口是否返回正常
+        if "result" in reponse:
+            result = reponse["result"]
+            # 统计tokens数
+            prompt_tokens, completion_tokens = reponse["usage"]["prompt_tokens"], reponse["usage"]["completion_tokens"]
+        else:
+            result = reponse["error_msg"]
     
-    # 统计tokens数
-    prompt_tokens, completion_tokens = reponse["usage"]["prompt_tokens"], reponse["usage"]["completion_tokens"]
     history_wx.append({"role": "assistant","content": result})
     history_chatbot = wenxin_to_chatbot(history_wx)
 
