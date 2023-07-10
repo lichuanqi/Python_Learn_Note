@@ -9,15 +9,15 @@ from config import cfg
 
 CLIENT_ID = cfg.readValue('API_BAIDU', 'CLIENT_ID')
 CLIENT_SECRET = cfg.readValue('API_BAIDU', 'CLIENT_SECRET')
-ACCESS_TIME = cfg.readValue('API_BAIDU', 'ACCESS_TIME')
+ACCESS_TIME = datetime.strptime(cfg.readValue('API_BAIDU', 'ACCESS_TIME'), '%Y-%m-%d %H:%M:%S')
 ACCESS_TOKEN = cfg.readValue('API_BAIDU', 'ACCESS_TOKEN')
 
 
-def get_access_token(client_id, client_secret):
+def get_access_token():
     """根据API Key、Secret Key换取access_token"""
         
     url = "https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&" \
-          "client_id=%s&client_secret=%s"%(client_id, client_secret)
+          "client_id=%s&client_secret=%s"%(CLIENT_ID, CLIENT_SECRET)
 
     payload = json.dumps("")
     headers = {
@@ -33,31 +33,31 @@ def get_access_token(client_id, client_secret):
     return access_time, access_token
 
 
-def update_access_token(access_time, access_token):
+def update_access_token():
     """更新access_token"""
     global ACCESS_TIME
     global ACCESS_TOKEN
 
-    time_now = datetime.now()
-    if not isinstance(access_time, datetime):
-        access_time = datetime(2023,1,1)
-    if (time_now-access_time).days <= 20:
-        print('无需更新Token')
-        return None, None
-    
-    access_time, access_token = get_access_token(CLIENT_ID, CLIENT_SECRET)
+    if not isinstance(ACCESS_TIME, datetime):
+        ACCESS_TIME = datetime(2023,1,1)
+    if (datetime.now()-ACCESS_TIME).days <= 20:
+        print('Token无需更新')
+        return 
+
+    access_time, access_token = get_access_token()
     if access_token is None:
-        return None, None
+        print('Token返回值为空')
+        return 
     
     ACCESS_TIME, ACCESS_TOKEN = access_time, access_token
-    cfg.setValue('API_BAIDU', 'ACCESS_TIME', access_time)
-    cfg.setValue('API_BAIDU', 'ACCESS_TOKEN', access_token)
+    cfg.setValue('API_BAIDU', 'ACCESS_TIME', ACCESS_TIME)
+    cfg.setValue('API_BAIDU', 'ACCESS_TOKEN', ACCESS_TOKEN)
     print('初始化完成, access_token已更新')
 
-    return access_time, access_token
+    return 
 
 
-def chat_by_token(token, message, stream=False):
+def chat_by_token(message, stream=False):
     """根据access_token进行对话
 
     Params
@@ -99,7 +99,7 @@ def chat_by_token(token, message, stream=False):
     """
         
     url = "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions?"\
-          "access_token=%s"%token
+          "access_token=%s"%ACCESS_TOKEN
     
     payload = json.dumps({
         "messages": message,
@@ -117,7 +117,7 @@ def chat_by_token(token, message, stream=False):
 
 def run_in_terminal():
     """在终端实现对话"""
-    update_access_token(ACCESS_TIME, ACCESS_TOKEN)
+    update_access_token()
     messages = []
     
     while True:
@@ -128,7 +128,7 @@ def run_in_terminal():
             break
 
         messages.append({"role": "user","content": msg})
-        reponse = chat_by_token(ACCESS_TOKEN, messages, stream=False)
+        reponse = chat_by_token(messages, stream=False)
 
         # 判断错误
         if "error_code" in reponse:
