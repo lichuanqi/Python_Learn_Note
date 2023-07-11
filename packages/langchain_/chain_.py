@@ -7,14 +7,14 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Chroma
 from langchain.memory import ConversationBufferMemory,ConversationBufferWindowMemory
 
-from llm_ import ChatLLM
+from llm_ import ChatGlmLLM
 
 
 def test_base_chain():
     prompt_template = """基于以下已知信息,请简洁并专业地回答用户的问题,问题:{question}"""
     prompt = PromptTemplate(template=prompt_template,
                             input_variables=["question"])
-    llm = ChatLLM()
+    llm = ChatGlmLLM()
     chain = LLMChain(llm=llm, prompt=prompt)
     result = chain.run({"question":'你好'})
     print(result)
@@ -32,7 +32,7 @@ def memory_chain():
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
     llm_chain = LLMChain(
-        llm=ChatLLM(),
+        llm=ChatGlmLLM(),
         prompt=prompt,
         # verbose=True,
         memory=memory)
@@ -51,7 +51,7 @@ def vectordb_chain():
     vectordb = Chroma(embedding_function=embeddings,
                     persist_directory=persist_directory)
     
-    llm = ChatLLM()
+    llm = ChatGlmLLM()
     qa = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff", 
