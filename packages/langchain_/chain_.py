@@ -5,6 +5,7 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain,RetrievalQA
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Chroma
+from langchain.memory import ConversationBufferMemory,ConversationBufferWindowMemory
 
 from llm_ import ChatLLM
 
@@ -17,6 +18,29 @@ def test_base_chain():
     chain = LLMChain(llm=llm, prompt=prompt)
     result = chain.run({"question":'你好'})
     print(result)
+
+
+def memory_chain():
+    template = """You are a chatbot having a conversation with a human.
+
+    {chat_history}
+    Human: {human_input}
+    Chatbot:"""
+
+    prompt = PromptTemplate(
+        input_variables=["chat_history", "human_input"], template=template)
+    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
+    llm_chain = LLMChain(
+        llm=ChatLLM(),
+        prompt=prompt,
+        # verbose=True,
+        memory=memory)
+    llm_chain.predict(human_input="Hi there my friend 11")
+    llm_chain.predict(human_input="Hi there my friend 22")
+    llm_chain.predict(human_input="Hi there my friend 33")
+
+    print(memory.chat_memory.messages)
 
 
 def vectordb_chain():
@@ -40,4 +64,5 @@ def vectordb_chain():
 
 
 # test_base_chain()
-vectordb_chain()
+memory_chain()
+# vectordb_chain()
